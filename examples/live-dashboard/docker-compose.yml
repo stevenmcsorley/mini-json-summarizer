@@ -1,0 +1,86 @@
+version: '3.8'
+
+services:
+  # The actual Mini JSON Summarizer (parent directory)
+  summarizer:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      PROFILES_ENABLED: "true"
+      PROFILES_DIR: "profiles"
+      PII_REDACTION_ENABLED: "true"
+      ALLOW_ORIGINS: '["*"]'
+    networks:
+      - monitoring
+
+  # Demo API service (generates realistic errors)
+  api-service:
+    build: ./app/api-service
+    environment:
+      SERVICE_NAME: "api"
+      ERROR_RATE: "0.15"
+      PORT: "8081"
+    ports:
+      - "8081:8081"
+    networks:
+      - monitoring
+
+  # Demo Auth service (token/auth errors)
+  auth-service:
+    build: ./app/auth-service
+    environment:
+      SERVICE_NAME: "auth"
+      ERROR_RATE: "0.08"
+      PORT: "8082"
+    ports:
+      - "8082:8082"
+    networks:
+      - monitoring
+
+  # Demo Worker service (timeout/queue errors)
+  worker-service:
+    build: ./app/worker-service
+    environment:
+      SERVICE_NAME: "worker"
+      TIMEOUT_RATE: "0.20"
+      PORT: "8083"
+    ports:
+      - "8083:8083"
+    networks:
+      - monitoring
+
+  # Fluentd - aggregates JSON logs from all services
+  fluentd:
+    image: fluent/fluentd:v1.16-debian
+    volumes:
+      - ./logging/fluentd/fluent.conf:/fluentd/etc/fluent.conf
+      - fluentd-buffer:/fluentd/log
+    ports:
+      - "24224:24224"
+      - "24224:24224/udp"
+      - "9880:9880"
+    networks:
+      - monitoring
+
+  # Beautiful dashboard with SSE
+  dashboard:
+    image: nginx:alpine
+    volumes:
+      - ./dashboard:/usr/share/nginx/html:ro
+    ports:
+      - "3000:80"
+    depends_on:
+      - summarizer
+      - fluentd
+    networks:
+      - monitoring
+
+networks:
+  monitoring:
+    driver: bridge
+
+volumes:
+  fluentd-buffer:
