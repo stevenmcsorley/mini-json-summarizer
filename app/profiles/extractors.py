@@ -5,12 +5,32 @@ from __future__ import annotations
 import logging
 from collections import defaultdict
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, Iterator, List, Optional, Set, Tuple
 
 from app.summarizer.json_path import iter_path_values
 from app.summarizer.models import Citation, SummaryBullet
 
 logger = logging.getLogger(__name__)
+
+
+def _iter_all_field_values(payload: Any, parent_path: str = "$") -> Iterator[Tuple[str, Any]]:
+    """
+    Recursively iterate over all fields in a JSON payload.
+
+    Yields:
+        (path, value) tuples for every field in the JSON structure
+    """
+    if isinstance(payload, dict):
+        for key, value in payload.items():
+            field_path = f"{parent_path}.{key}"
+            yield (field_path, value)
+            # Recurse into nested structures
+            yield from _iter_all_field_values(value, field_path)
+    elif isinstance(payload, list):
+        for idx, item in enumerate(payload):
+            item_path = f"{parent_path}[{idx}]"
+            # Recurse into list items
+            yield from _iter_all_field_values(item, item_path)
 
 
 class ProfileExtractor:
@@ -56,11 +76,9 @@ class CategoricalExtractor(ProfileExtractor):
         values = []
         paths = []
 
-        for path, value in iter_path_values(self.payload):
+        for path, value in _iter_all_field_values(self.payload):
             # Match field name at end of path
-            if path.endswith(f".{self.field_name}") or path.endswith(
-                f"['{self.field_name}']"
-            ):
+            if path.endswith(f".{self.field_name}"):
                 if isinstance(value, (str, int, bool)):
                     values.append(str(value))
                     paths.append(path)
@@ -119,10 +137,8 @@ class NumericExtractor(ProfileExtractor):
         paths = []
         non_numeric_count = 0
 
-        for path, value in iter_path_values(self.payload):
-            if path.endswith(f".{self.field_name}") or path.endswith(
-                f"['{self.field_name}']"
-            ):
+        for path, value in _iter_all_field_values(self.payload):
+            if path.endswith(f".{self.field_name}"):
                 # Strict numeric type checking - no bool→int coercion
                 if isinstance(value, bool):
                     non_numeric_count += 1
@@ -183,8 +199,8 @@ class TimebucketExtractor(ProfileExtractor):
         timestamps = []
         paths = []
 
-        for path, value in iter_path_values(self.payload):
-            if path.endswith(f".{field_name}") or path.endswith(f"['{field_name}']"):
+        for path, value in _iter_all_field_values(self.payload):
+            if path.endswith(f".{field_name}"):
                 if isinstance(value, str):
                     try:
                         # Try parsing ISO format timestamps
