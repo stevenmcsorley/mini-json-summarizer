@@ -148,7 +148,9 @@ class AnthropicProvider(LLMProvider):
 class OllamaProvider(LLMProvider):
     """Ollama local LLM provider."""
 
-    def __init__(self, model: str = "llama3.2", base_url: str = "http://localhost:11434"):
+    def __init__(
+        self, model: str = "llama3.2", base_url: str = "http://localhost:11434"
+    ):
         """
         Initialize Ollama provider.
 
@@ -197,9 +199,7 @@ class OllamaProvider(LLMProvider):
         }
 
         async with httpx.AsyncClient(timeout=60.0) as client:
-            response = await client.post(
-                f"{self.base_url}/api/generate", json=payload
-            )
+            response = await client.post(f"{self.base_url}/api/generate", json=payload)
             response.raise_for_status()
             result = response.json()
 
