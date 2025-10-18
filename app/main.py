@@ -14,11 +14,24 @@ from starlette.responses import JSONResponse
 from app import __version__ as app_version
 from app.api.routes import router
 from app.config import get_settings
+from app.profiles.loader import get_profile_registry
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def create_application() -> FastAPI:
     """Create and configure the FastAPI application instance."""
     settings = get_settings()
+
+    # Load profiles if enabled
+    if settings.profiles_enabled:
+        try:
+            registry = get_profile_registry()
+            registry.load_from_directory(settings.profiles_dir)
+        except Exception as e:
+            logger.error(f"Failed to load profiles: {e}", exc_info=True)
+
     app = FastAPI(
         title="Mini JSON Summarizer",
         description="Deterministic-first summarizer for large JSON payloads.",

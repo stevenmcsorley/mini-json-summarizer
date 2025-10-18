@@ -55,6 +55,9 @@ class SummarizeRequestModel(BaseModel):
     stream: bool = Field(default=True, description="Emit Server-Sent Events when true.")
     disable_redaction: bool = Field(default=False)
     include_root_summary: bool = Field(default=False)
+    profile: Optional[str] = Field(
+        default=None, description="Profile ID (logs, metrics, policy, etc.)"
+    )
 
     @model_validator(mode="after")
     def ensure_payload_source(self) -> "SummarizeRequestModel":
@@ -140,6 +143,9 @@ class ChatRequestModel(BaseModel):
     style: StyleLiteral = Field(default="mixed")
     template: Optional[str] = None
     include_root_summary: bool = Field(default=False)
+    profile: Optional[str] = Field(
+        default=None, description="Profile ID (logs, metrics, policy, etc.)"
+    )
 
     @field_validator("focus", mode="before")
     @classmethod

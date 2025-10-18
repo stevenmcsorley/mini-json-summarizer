@@ -15,6 +15,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, ValidationError
 
 from app.config import Settings, get_settings
+from app.profiles.loader import get_profile_registry
 from app.summarizer.json_path import path_exists
 from app.summarizer.models import SummarizationRequest
 from app.summarizer.service import summarize
@@ -203,12 +204,34 @@ def _build_evidence_stats(
     }
 
 
+@router.get("/v1/profiles")
+async def list_profiles():
+    """List available profiles."""
+    registry = get_profile_registry()
+    profiles = registry.list_profiles()
+    return JSONResponse(content=[p.model_dump() for p in profiles])
+
+
 @router.post("/v1/summarize-json")
 async def summarize_json(
     summary_request: SummarizeRequestModel = Depends(load_summary_request),
 ):
     try:
         settings = get_settings()
+
+        # Validate profile if specified
+        if summary_request.profile:
+            registry = get_profile_registry()
+            if not registry.get(summary_request.profile):
+                available = registry.get_available_ids()
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail={
+                        "error": "unknown_profile",
+                        "available": available,
+                    },
+                )
+
         payload_source = summary_request.payload
         if payload_source is None and summary_request.payload_url:
             payload_source = await _fetch_json(
@@ -247,6 +270,7 @@ async def summarize_json(
             template=summary_request.template,
             baseline_payload=baseline_payload,
             include_root_summary=summary_request.include_root_summary,
+            profile_id=summary_request.profile,
         )
 
         start_time = time.perf_counter()
@@ -324,6 +348,7 @@ async def chat(
             style=chat_request.style,
             template=chat_request.template,
             include_root_summary=chat_request.include_root_summary,
+            profile_id=chat_request.profile,
         )
         start_time = time.perf_counter()
         bundle = await summarize(summarization_request, settings=settings)
