@@ -114,7 +114,7 @@ async def summarize(
     engine = registry.resolve(request.engine, settings)
 
     # Check if engine has async summarize method
-    if hasattr(engine, 'summarize_async'):
+    if hasattr(engine, "summarize_async"):
         bundle = await engine.summarize_async(request, settings)
     else:
         # Fallback to sync method for deterministic engine

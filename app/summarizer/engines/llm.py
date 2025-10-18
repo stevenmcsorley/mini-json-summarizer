@@ -309,6 +309,7 @@ Output Format:
             return self.deterministic_engine.summarize(request, settings)
         else:
             from app.summarizer.engines.deterministic import DeterministicEngine
+
             det_engine = DeterministicEngine()
             return det_engine.summarize(request, settings)
 
@@ -330,6 +331,7 @@ Output Format:
             det_bundle = self.deterministic_engine.summarize(request, settings)
         else:
             from app.summarizer.engines.deterministic import DeterministicEngine
+
             det_engine = DeterministicEngine()
             det_bundle = det_engine.summarize(request, settings)
 

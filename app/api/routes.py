@@ -250,7 +250,9 @@ async def summarize_json(
         )
 
         start_time = time.perf_counter()
-        evidence_bundle = await summarize(summarization_request, settings=active_settings)
+        evidence_bundle = await summarize(
+            summarization_request, settings=active_settings
+        )
         elapsed_ms = int((time.perf_counter() - start_time) * 1000)
 
         evidence_stats = _build_evidence_stats(
