@@ -49,8 +49,12 @@ class Settings(BaseSettings):
 
     # Profile settings
     profiles_enabled: bool = Field(True, description="Enable profile system")
-    profiles_dir: str = Field("profiles", description="Directory containing profile YAML files")
-    profiles_hot_reload: bool = Field(False, description="Enable hot reload of profiles")
+    profiles_dir: str = Field(
+        "profiles", description="Directory containing profile YAML files"
+    )
+    profiles_hot_reload: bool = Field(
+        False, description="Enable hot reload of profiles"
+    )
 
     class Config:
         env_file = ".env"
