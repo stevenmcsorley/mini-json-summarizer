@@ -162,7 +162,7 @@ class FieldAggregator:
         field_evidence: Dict[str, Any] = {"type_counts": type_counts_ordered}
         detail_lines: List[str] = []
         field_path = append_path(array_path, self.field_name)
-        citation_paths: set[str] = set()
+        citation_paths: set[str] = {field_path}
 
         numeric_mode = (
             number_count > 0
