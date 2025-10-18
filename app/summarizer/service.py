@@ -6,6 +6,7 @@ from typing import Dict, Optional
 import logging
 
 from app.config import Settings, get_settings
+from app.profiles.engine import get_engine_for_profile
 from app.summarizer.engines.base import SummarizationEngine
 from app.summarizer.engines.deterministic import DeterministicEngine
 from app.summarizer.models import EvidenceBundle, SummarizationRequest
@@ -110,8 +111,15 @@ async def summarize(
 ) -> EvidenceBundle:
     """Route a summarization request to the configured engine."""
     settings = settings or get_settings()
-    # Let resolve() handle engine lookup and initialization
-    engine = registry.resolve(request.engine, settings)
+
+    # Check if profile requested
+    if request.profile_id:
+        # Use profile engine
+        base_engine = registry.resolve(request.engine, settings)
+        engine = get_engine_for_profile(request.profile_id, base_engine)
+    else:
+        # Let resolve() handle engine lookup and initialization
+        engine = registry.resolve(request.engine, settings)
 
     # Check if engine has async summarize method
     if hasattr(engine, "summarize_async"):

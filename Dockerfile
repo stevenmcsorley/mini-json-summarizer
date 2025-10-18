@@ -9,11 +9,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends build-essential
     && rm -rf /var/lib/apt/lists/*
 
 COPY pyproject.toml ./
+COPY app ./app
+COPY profiles ./profiles
 
 RUN pip install --upgrade pip \
     && pip install --no-cache-dir .
-
-COPY app ./app
 
 EXPOSE 8080
 

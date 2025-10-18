@@ -44,3 +44,4 @@ class SummarizationRequest:
     template: Optional[str] = None
     baseline_payload: Optional[Any] = None
     include_root_summary: bool = False
+    profile_id: Optional[str] = None

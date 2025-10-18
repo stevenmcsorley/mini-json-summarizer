@@ -1,0 +1,57 @@
+id: policy
+version: 1.0.0
+title: Policy & Compliance Profile
+description: Track policy changes, permissions, and compliance-related data with baseline comparison
+
+defaults:
+  focus:
+    - permissions
+    - roles
+    - policy
+    - action
+    - resource
+  style: narrative
+  length: long
+
+extractors:
+  - categorical:action
+  - categorical:resource
+  - categorical:role
+  - categorical:permission
+  - categorical:status
+  - categorical:policy_type
+  - diff:baseline
+  - timebucket:modified_at:day
+  - timebucket:created_at:day
+
+llm_hints:
+  system_suffix: "Analyze policy changes for compliance impact. Highlight added/removed permissions and potential security implications."
+  bullet_prefix: "🔒"
+  narrative_tone: compliance
+
+redaction:
+  deny_paths:
+    - $..*ssn
+    - $..*tax_id
+    - $..*account_number
+    - $..*password
+    - $..*secret
+  allow_paths:
+    - $.permissions
+    - $.roles
+    - $.action
+    - $.resource
+  extra_regexes:
+    - name: credit_card
+      pattern: '\b\d{4}[- ]?\d{4}[- ]?\d{4}[- ]?\d{4}\b'
+    - name: email_strict
+      pattern: '\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
+
+limits:
+  topk: 10
+  numeric_fields_limit: 5
+  string_cardinality_limit: 15
+
+time:
+  timezone: UTC
+  timebucket_default: day
