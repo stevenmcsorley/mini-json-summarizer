@@ -52,6 +52,14 @@ services:
     networks:
       - monitoring
 
+  # Log aggregator - exposes HTTP endpoint for recent logs
+  log-aggregator:
+    build: ./log-aggregator
+    ports:
+      - "9880:9880"
+    networks:
+      - monitoring
+
   # Fluentd - aggregates JSON logs from all services
   fluentd:
     image: fluent/fluentd:v1.16-debian
@@ -61,7 +69,8 @@ services:
     ports:
       - "24224:24224"
       - "24224:24224/udp"
-      - "9880:9880"
+    depends_on:
+      - log-aggregator
     networks:
       - monitoring
 

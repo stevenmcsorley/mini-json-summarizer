@@ -63,8 +63,9 @@ Scrolling terminal view of incoming SSE events
 |-----------|-----------|---------|
 | **Dashboard** | Vanilla JS + Tailwind | Beautiful UI with SSE client |
 | **Summarizer** | Parent Mini JSON Summarizer | Profiles-powered log analysis |
+| **Log Aggregator** | FastAPI HTTP server | Exposes /logs/last-5min endpoint |
 | **Services** | 3x FastAPI microservices | Generate realistic error logs |
-| **Log Collector** | Fluentd | Aggregate JSON logs to buffer |
+| **Fluentd** | Fluentd forward protocol | Receives logs from services |
 | **Orchestration** | Docker Compose | One-command stack startup |
 
 ---
@@ -75,28 +76,42 @@ Scrolling terminal view of incoming SSE events
 ┌──────────────┐
 │ Microservices│ (api, auth, worker)
 │  Generate    │
-│  JSON Logs   │
+│  JSON Logs   │ (Fluentd logger)
 └──────┬───────┘
-       │
+       │ forward
        ▼
 ┌──────────────┐
-│   Fluentd    │ (log aggregation)
-│   Buffer     │
+│   Fluentd    │ (receives logs)
+│   :24224     │
 └──────┬───────┘
-       │
+       │ HTTP POST
        ▼
 ┌──────────────┐
-│ Mini JSON    │ (ACTUAL parent summarizer)
+│     Log      │ (in-memory buffer)
+│  Aggregator  │ GET /logs/last-5min
+│   :9880      │
+└──────┬───────┘
+       │ json_url
+       ▼
+┌──────────────┐
+│ Mini JSON    │ (REAL parent summarizer)
 │ Summarizer   │ profile=logs, stream=true
-│  :8080       │
+│  :8080       │ refresh_interval=5s
 └──────┬───────┘
-       │ SSE
+       │ SSE (EventSource)
        ▼
 ┌──────────────┐
-│  Dashboard   │ (EventSource API)
-│   :3000      │
+│  Dashboard   │ (REAL connection)
+│   :3000      │ Updates every 5 seconds
 └──────────────┘
 ```
+
+**Key Flow:**
+1. **Services** emit JSON logs → Fluentd (forward protocol)
+2. **Fluentd** forwards logs → Log Aggregator (HTTP POST /ingest)
+3. **Log Aggregator** buffers last 5 minutes → HTTP endpoint
+4. **Summarizer** polls endpoint every 5s → Runs `logs` profile
+5. **Dashboard** receives SSE events → Updates UI in real-time
 
 ---
 

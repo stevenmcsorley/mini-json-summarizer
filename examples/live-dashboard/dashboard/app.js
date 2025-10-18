@@ -55,62 +55,111 @@ function initChart() {
     });
 }
 
-// Connect to SSE stream (simulated - will connect to real summarizer)
+// Connect to REAL SSE stream from Mini JSON Summarizer
 function connectSSE() {
-    // In production, this will connect to the actual summarizer
-    // For now, we'll simulate with a demo data generator
+    const params = new URLSearchParams({
+        profile: 'logs',
+        json_url: 'http://log-aggregator:9880/logs/last-5min',
+        stream: true,
+        focus: JSON.stringify(['level', 'service', 'code']),
+        refresh_interval: '5'
+    });
 
-    // Real connection will be:
-    // const eventSource = new EventSource('http://localhost:8080/v1/summarize-json?profile=logs&stream=true');
+    const url = `http://localhost:8080/v1/summarize-json?${params}`;
+    console.log('Connecting to SSE:', url);
 
-    // Simulate streaming data for demo
-    startDemoStream();
-}
+    const eventSource = new EventSource(url);
 
-// Demo data generator (simulates what SSE will provide)
-function startDemoStream() {
-    setInterval(() => {
-        const demoData = generateDemoData();
-        handleSSEMessage(demoData);
-    }, 2000);
-}
+    eventSource.addEventListener('message', (event) => {
+        try {
+            const data = JSON.parse(event.data);
+            console.log('SSE message received:', data);
 
-function generateDemoData() {
-    const errorCodes = [504, 500, 401, 429, 503];
-    const services = ['api', 'auth', 'worker'];
-
-    return {
-        phase: 'summary',
-        bullet: {
-            text: `Generated at ${new Date().toLocaleTimeString()}`,
-            evidence: {
-                level: {
-                    top: [
-                        ['error', Math.floor(Math.random() * 50) + 10],
-                        ['warn', Math.floor(Math.random() * 30) + 5],
-                        ['info', Math.floor(Math.random() * 100) + 50]
-                    ]
-                },
-                service: {
-                    top: services.map(s => [s, Math.floor(Math.random() * 40) + 5])
-                },
-                code: {
-                    top: errorCodes.map(c => [c, Math.floor(Math.random() * 30) + 2])
-                }
+            if (data.phase === 'summary') {
+                handleSSEMessage(data);
             }
+        } catch (error) {
+            console.error('Error parsing SSE message:', error);
         }
-    };
+    });
+
+    eventSource.addEventListener('error', (error) => {
+        console.error('SSE connection error:', error);
+        // Attempt to reconnect after 5 seconds
+        setTimeout(() => {
+            console.log('Attempting to reconnect...');
+            eventSource.close();
+            connectSSE();
+        }, 5000);
+    });
+
+    eventSource.addEventListener('open', () => {
+        console.log('SSE connection established');
+        updateConnectionStatus('connected');
+    });
+
+    return eventSource;
 }
 
-// Handle SSE messages
+// Update connection status indicator
+function updateConnectionStatus(status) {
+    const indicator = document.getElementById('connection-status');
+    if (indicator) {
+        indicator.textContent = status === 'connected' ? '🟢 Live' : '🔴 Disconnected';
+        indicator.className = status === 'connected' ? 'text-green-400' : 'text-red-400';
+    }
+}
+
+// Handle SSE messages from Mini JSON Summarizer
 function handleSSEMessage(data) {
     eventCount++;
     document.getElementById('event-counter').textContent = `${eventCount} events`;
 
-    if (data.phase === 'summary' && data.bullet && data.bullet.evidence) {
-        updateDashboard(data.bullet.evidence);
-        addLogEntry(data.bullet.text);
+    // Real summarizer sends bullets with extractors in the format:
+    // { phase: 'summary', bullet: { text: '...', extractors: [...] } }
+    if (data.phase === 'summary' && data.bullet) {
+        const bullet = data.bullet;
+
+        // Extract evidence from extractors
+        const evidence = extractEvidenceFromBullet(bullet);
+
+        if (evidence) {
+            updateDashboard(evidence);
+        }
+
+        // Add bullet text to log stream
+        if (bullet.text) {
+            addLogEntry(bullet.text);
+        }
     }
+}
+
+// Extract evidence from bullet extractors
+function extractEvidenceFromBullet(bullet) {
+    const evidence = {
+        code: null,
+        service: null,
+        level: null
+    };
+
+    // Extractors are in format: { name: 'categorical:code', top: [...] }
+    if (bullet.extractors && Array.isArray(bullet.extractors)) {
+        bullet.extractors.forEach(extractor => {
+            if (extractor.name && extractor.name.startsWith('categorical:')) {
+                const field = extractor.name.split(':')[1];
+
+                if (field === 'code' && extractor.top) {
+                    evidence.code = { top: extractor.top };
+                } else if (field === 'service' && extractor.top) {
+                    evidence.service = { top: extractor.top };
+                } else if (field === 'level' && extractor.top) {
+                    evidence.level = { top: extractor.top };
+                }
+            }
+        });
+    }
+
+    return evidence;
 }
 
 // Update dashboard panels
