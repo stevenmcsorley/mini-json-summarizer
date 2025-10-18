@@ -145,6 +145,93 @@ class AnthropicProvider(LLMProvider):
         return len(text) // 4
 
 
+class OllamaProvider(LLMProvider):
+    """Ollama local LLM provider."""
+
+    def __init__(
+        self, model: str = "llama3.2", base_url: str = "http://localhost:11434"
+    ):
+        """
+        Initialize Ollama provider.
+
+        Args:
+            model: Ollama model name (e.g., llama3.2, mistral, codellama)
+            base_url: Ollama server URL (default: http://localhost:11434)
+        """
+        self.model = model
+        self.base_url = base_url.rstrip("/")
+        logger.info(f"Initialized Ollama provider with model: {model} at {base_url}")
+
+    async def generate(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        response_format: Optional[Dict[str, Any]] = None,
+        max_tokens: int = 1000,
+    ) -> Dict[str, Any]:
+        """Generate response from Ollama API."""
+        try:
+            import httpx
+        except ImportError:
+            raise ImportError(
+                "httpx package not installed. Install with: pip install httpx"
+            )
+
+        # Combine system and user prompts for Ollama
+        if response_format:
+            full_prompt = (
+                f"{system_prompt}\n\n"
+                f"Respond with valid JSON matching this schema:\n"
+                f"{json.dumps(response_format, indent=2)}\n\n"
+                f"User query: {user_prompt}"
+            )
+        else:
+            full_prompt = f"{system_prompt}\n\nUser query: {user_prompt}"
+
+        payload = {
+            "model": self.model,
+            "prompt": full_prompt,
+            "stream": False,
+            "options": {
+                "temperature": 0.1,  # Low temperature for consistency
+                "num_predict": max_tokens,
+            },
+        }
+
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            response = await client.post(f"{self.base_url}/api/generate", json=payload)
+            response.raise_for_status()
+            result = response.json()
+
+        content = result.get("response", "")
+
+        # Parse JSON if format was requested
+        if response_format:
+            # Try to extract JSON from response
+            try:
+                # Look for JSON block in markdown code fence
+                if "```json" in content:
+                    start = content.find("```json") + 7
+                    end = content.find("```", start)
+                    content = content[start:end].strip()
+                elif "```" in content:
+                    start = content.find("```") + 3
+                    end = content.find("```", start)
+                    content = content[start:end].strip()
+
+                return json.loads(content)
+            except (json.JSONDecodeError, ValueError) as e:
+                logger.warning(f"Failed to parse Ollama JSON response: {e}")
+                # Return a basic structure if parsing fails
+                return {"text": content}
+
+        return {"text": content}
+
+    def count_tokens(self, text: str) -> int:
+        """Estimate tokens (roughly 4 chars per token)."""
+        return len(text) // 4
+
+
 class LLMEngine(SummarizationEngine):
     """
     LLM-based summarization engine.
