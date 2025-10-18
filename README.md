@@ -108,6 +108,42 @@ curl http://localhost:8080/healthz
 ### Example Use Case
 Point the service at a 10 MB API export to get instant rollups and top categories with verified JSONPath citations—ideal for log digests, compliance-safe reporting, and noisy incident payloads.
 
+## Profiles
+
+Profiles provide domain-specific extractors and defaults for common use cases like logs, metrics, and policy analysis.
+
+**List available profiles:**
+```bash
+curl http://localhost:8080/v1/profiles
+```
+
+**Use logs profile for application logs:**
+```bash
+curl -N -X POST http://localhost:8080/v1/summarize-json \
+  -H "Content-Type: application/json" \
+  -d '{
+    "profile":"logs",
+    "json":{"logs":[
+      {"timestamp":"2025-10-18T10:11:00Z","level":"error","service":"api","code":504},
+      {"timestamp":"2025-10-18T10:11:10Z","level":"warn","service":"api","code":499}
+    ]},
+    "stream": true
+  }'
+```
+
+**Use metrics profile with hybrid LLM:**
+```bash
+curl -s -X POST http://localhost:8080/v1/summarize-json \
+  -H "Content-Type: application/json" \
+  -d '{
+    "profile":"metrics",
+    "json":{"cpu":[0.4,0.6,0.9],"latency_ms":[95,120,140]},
+    "engine":"hybrid","stream":false
+  }'
+```
+
+See [docs/PROFILES.md](docs/PROFILES.md) for details on creating custom profiles.
+
 ## Testing
 ```bash
 pytest

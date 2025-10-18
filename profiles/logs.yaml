@@ -1,0 +1,52 @@
+id: logs
+version: 1.0.0
+title: Log Analysis Profile
+description: Optimized for analyzing application logs with timestamps, severity levels, and error tracking
+
+defaults:
+  focus:
+    - level
+    - service
+    - error
+    - code
+    - timestamp
+  style: bullets
+  length: medium
+
+extractors:
+  - categorical:level
+  - categorical:service
+  - categorical:code
+  - categorical:error_code
+  - categorical:status
+  - numeric:response_time
+  - numeric:duration_ms
+  - timebucket:timestamp:minute
+  - timebucket:created_at:minute
+  - timebucket:time:minute
+
+llm_hints:
+  system_suffix: "Focus on error patterns, service health, and temporal trends. Highlight anomalies and critical issues."
+  bullet_prefix: "📊"
+  narrative_tone: urgent
+
+redaction:
+  deny_paths:
+    - $..*token
+    - $..*password
+    - $..*secret
+    - $..*api_key
+    - $..*session
+  allow_paths:
+    - $.level
+    - $.service
+    - $.code
+
+limits:
+  topk: 5
+  numeric_fields_limit: 10
+  string_cardinality_limit: 10
+
+time:
+  timezone: UTC
+  timebucket_default: minute

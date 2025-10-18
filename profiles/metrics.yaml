@@ -1,0 +1,49 @@
+id: metrics
+version: 1.0.0
+title: Metrics & KPI Profile
+description: Designed for performance metrics, KPIs, and numerical analysis with statistical aggregations
+
+defaults:
+  focus:
+    - latency
+    - throughput
+    - error_rate
+    - cpu
+    - memory
+  style: kpi-block
+  length: short
+
+extractors:
+  - numeric:latency
+  - numeric:latency_ms
+  - numeric:response_time
+  - numeric:throughput
+  - numeric:requests_per_second
+  - numeric:error_rate
+  - numeric:cpu_percent
+  - numeric:memory_mb
+  - numeric:duration
+  - numeric:count
+  - categorical:endpoint
+  - categorical:method
+  - categorical:region
+
+llm_hints:
+  system_suffix: "Present metrics as clear KPIs with context. Emphasize performance trends and outliers."
+  bullet_prefix: "📈"
+  narrative_tone: neutral
+
+redaction:
+  deny_paths:
+    - $..*user_id
+    - $..*customer_id
+    - $..*ip_address
+
+limits:
+  topk: 3
+  numeric_fields_limit: 15
+  string_cardinality_limit: 8
+
+time:
+  timezone: UTC
+  timebucket_default: hour
