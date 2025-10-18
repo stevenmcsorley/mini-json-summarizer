@@ -105,12 +105,18 @@ class EngineRegistry:
 registry = EngineRegistry()
 
 
-def summarize(
+async def summarize(
     request: SummarizationRequest, settings: Settings | None = None
 ) -> EvidenceBundle:
     """Route a summarization request to the configured engine."""
     settings = settings or get_settings()
     # Let resolve() handle engine lookup and initialization
     engine = registry.resolve(request.engine, settings)
-    bundle = engine.summarize(request, settings)
+
+    # Check if engine has async summarize method
+    if hasattr(engine, 'summarize_async'):
+        bundle = await engine.summarize_async(request, settings)
+    else:
+        # Fallback to sync method for deterministic engine
+        bundle = engine.summarize(request, settings)
     return bundle
