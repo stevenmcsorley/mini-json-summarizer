@@ -21,7 +21,7 @@ out=$(curl -s -N -w "\n%{http_code}" -X POST "$API" \
   -d '{"json":{"items":[{"v":1},{"v":"1"},{"v":true},{"v":2}]},"focus":["items","v"],"stream":true}')
 code="${out##*$'\n'}"; body="${out%$'\n'*}"
 [[ "$code" == "200" ]] || fail "mixed types HTTP $code" "$body"
-echo "$body" | grep -q '"items"' || fail "mixed types: items not summarized" "$body"
+echo "$body" | grep -q 'items:' || fail "mixed types: items not summarized" "$body"
 pass "mixed types summarized"
 
 # C) Unicode / emoji (force UTF-8)
@@ -29,14 +29,14 @@ export PYTHONIOENCODING=UTF-8
 python - <<'PY' > unicode.json
 import json
 s = "🚀✨" * 2000
-print(json.dumps({"notes":[s]}, ensure_ascii=False))
+print(json.dumps({"json": {"notes":[s]}}, ensure_ascii=False))
 PY
 out=$(curl -s -N -w "\n%{http_code}" -X POST "$API" \
   -H "Content-Type: application/json" \
   --data-binary @unicode.json)
 code="${out##*$'\n'}"; body="${out%$'\n'*}"
 [[ "$code" == "200" ]] || fail "unicode HTTP $code" "$body"
-echo "$body" | grep -q '"phase":"summary"' || fail "unicode: no summary phase" "$body"
+grep -q '"phase":"summary"' <<< "$body" || fail "unicode: no summary phase" "$body"
 pass "unicode handled"
 
 # D) Redaction patterns
@@ -53,7 +53,7 @@ python - <<'PY' > too_big.json
 import json
 n=600000
 users=[{"id":i,"name":f"user{i}","note":"x"*40} for i in range(n)]
-print(json.dumps({"users":users}))
+print(json.dumps({"json": {"users":users}}))
 PY
 out=$(curl -s -w "\n%{http_code}" -X POST "$API" \
   -H "Content-Type: application/json" --data-binary @too_big.json || true)
