@@ -32,6 +32,7 @@ class EngineRegistry:
                 HybridEngine,
                 OpenAIProvider,
                 AnthropicProvider,
+                OllamaProvider,
             )
 
             deterministic = self._engines["deterministic"]
@@ -58,6 +59,14 @@ class EngineRegistry:
                     api_key=settings.anthropic_api_key, model=model
                 )
                 logger.info(f"Initialized Anthropic provider with model: {model}")
+
+            elif settings.llm_provider == "ollama":
+                model = settings.llm_model or "llama3.2"
+                base_url = settings.ollama_base_url or "http://localhost:11434"
+                provider = OllamaProvider(model=model, base_url=base_url)
+                logger.info(
+                    f"Initialized Ollama provider with model: {model} at {base_url}"
+                )
 
             else:
                 logger.warning(f"Unknown LLM provider: {settings.llm_provider}")
