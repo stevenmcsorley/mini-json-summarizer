@@ -127,7 +127,26 @@ Settings are supplied via environment variables or `.env`:
 - `ALLOW_ORIGINS` for CORS whitelisting
 - `STREAMING_CHUNK_DELAY_MS` (default 100)
 
-Modify `app/config.py` for additional tuning (top-K limits, streaming cadence, redaction patterns). Future engines (LLM/hybrid) can be registered through `app/summarizer/service.py`.
+### LLM Configuration (Optional)
+Enable LLM-powered summarization by setting:
+- `LLM_PROVIDER` - Options: `none` (default), `openai`, `anthropic`
+- `LLM_MODEL` - Model name (e.g., `gpt-4o-mini`, `claude-3-haiku-20240307`)
+- `OPENAI_API_KEY` - Your OpenAI API key (if using OpenAI)
+- `ANTHROPIC_API_KEY` - Your Anthropic API key (if using Claude)
+
+Example `.env` configuration:
+```bash
+LLM_PROVIDER=openai
+LLM_MODEL=gpt-4o-mini
+OPENAI_API_KEY=sk-...
+```
+
+Available engines:
+- `deterministic` (default) - Fast, predictable, no external APIs
+- `llm` - LLM-based rephrasing with evidence preservation
+- `hybrid` - Deterministic evidence + LLM refinement (recommended with LLM)
+
+Modify `app/config.py` for additional tuning (top-K limits, streaming cadence, redaction patterns).
 
 ## License
 MIT © 2025 Steven McSorley
