@@ -1,4 +1,5 @@
 """Pytest configuration for tests."""
+
 import pytest
 
 
