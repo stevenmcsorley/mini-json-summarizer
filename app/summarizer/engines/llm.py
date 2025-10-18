@@ -13,7 +13,12 @@ from abc import ABC, abstractmethod
 
 from app.config import Settings
 from app.summarizer.engines.base import SummarizationEngine
-from app.summarizer.models import EvidenceBundle, SummarizationRequest, SummaryBullet, Citation
+from app.summarizer.models import (
+    EvidenceBundle,
+    SummarizationRequest,
+    SummaryBullet,
+    Citation,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -115,8 +120,9 @@ class AnthropicProvider(LLMProvider):
         """Generate response from Anthropic API."""
         if response_format:
             # Append JSON instruction to system prompt
-            system_prompt += "\n\nRespond with valid JSON matching this schema:\n" + json.dumps(
-                response_format, indent=2
+            system_prompt += (
+                "\n\nRespond with valid JSON matching this schema:\n"
+                + json.dumps(response_format, indent=2)
             )
 
         response = await self.client.messages.create(
@@ -228,7 +234,9 @@ Output Format:
 
         # NOTE: Async LLM calls would require refactoring the entire pipeline
         # For now, log that LLM is configured but not yet fully integrated
-        logger.warning("LLM engine returning deterministic results (async integration pending)")
+        logger.warning(
+            "LLM engine returning deterministic results (async integration pending)"
+        )
 
         return det_bundle
 

@@ -80,7 +80,9 @@ class EngineRegistry:
     def register(self, engine: SummarizationEngine) -> None:
         self._engines[engine.name] = engine
 
-    def resolve(self, name: str, settings: Optional[Settings] = None) -> SummarizationEngine:
+    def resolve(
+        self, name: str, settings: Optional[Settings] = None
+    ) -> SummarizationEngine:
         # Initialize LLM engines on first request if configured
         if settings and not self._settings:
             self._settings = settings
