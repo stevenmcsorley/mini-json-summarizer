@@ -14,6 +14,7 @@ RUN pip install --upgrade pip \
     && pip install --no-cache-dir .
 
 COPY app ./app
+COPY profiles ./profiles
 
 EXPOSE 8080
 
