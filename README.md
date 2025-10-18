@@ -128,23 +128,95 @@ Settings are supplied via environment variables or `.env`:
 - `STREAMING_CHUNK_DELAY_MS` (default 100)
 
 ### LLM Configuration (Optional)
-Enable LLM-powered summarization by setting:
-- `LLM_PROVIDER` - Options: `none` (default), `openai`, `anthropic`
-- `LLM_MODEL` - Model name (e.g., `gpt-4o-mini`, `claude-3-haiku-20240307`)
-- `OPENAI_API_KEY` - Your OpenAI API key (if using OpenAI)
-- `ANTHROPIC_API_KEY` - Your Anthropic API key (if using Claude)
+Enable LLM-powered summarization with OpenAI or Anthropic models for more natural, refined summaries while maintaining evidence-based accuracy.
 
-Example `.env` configuration:
+#### Quick Start with LLM
+
+**1. Configure your LLM provider in `.env`:**
+
 ```bash
+# OpenAI Configuration
 LLM_PROVIDER=openai
 LLM_MODEL=gpt-4o-mini
-OPENAI_API_KEY=sk-...
+OPENAI_API_KEY=sk-proj-your-key-here
+
+# OR Anthropic Configuration
+# LLM_PROVIDER=anthropic
+# LLM_MODEL=claude-3-haiku-20240307
+# ANTHROPIC_API_KEY=sk-ant-your-key-here
+
+# Optional LLM settings
+LLM_MAX_TOKENS=1500
+LLM_TEMPERATURE=0.1
+LLM_FALLBACK_TO_DETERMINISTIC=true
 ```
 
-Available engines:
-- `deterministic` (default) - Fast, predictable, no external APIs
-- `llm` - LLM-based rephrasing with evidence preservation
-- `hybrid` - Deterministic evidence + LLM refinement (recommended with LLM)
+**2. Request LLM-powered summarization:**
+
+```bash
+# Use hybrid engine (recommended - combines deterministic + LLM)
+curl -X POST http://localhost:8080/v1/summarize-json \
+  -H "Content-Type: application/json" \
+  -d '{
+        "json": {"orders":[{"id":1,"total":20,"status":"paid"}]},
+        "engine": "hybrid",
+        "stream": false
+      }'
+
+# Or use pure LLM engine
+curl -X POST http://localhost:8080/v1/summarize-json \
+  -H "Content-Type: application/json" \
+  -d '{
+        "json": {"orders":[{"id":1,"total":20,"status":"paid"}]},
+        "engine": "llm",
+        "stream": false
+      }'
+```
+
+#### Available Engines
+
+| Engine | Description | Use Case |
+|--------|-------------|----------|
+| `deterministic` | Fast, rule-based extraction with JSONPath citations | Default mode, no API costs, fully offline |
+| `llm` | LLM-powered rephrasing of evidence bundles | Natural language summaries with API costs |
+| `hybrid` | Deterministic evidence + LLM refinement | **Recommended**: Best of both worlds |
+
+#### How LLM Mode Works
+
+1. **Evidence Extraction**: Deterministic engine analyzes JSON and creates evidence bundles with citations
+2. **Evidence-Only LLM Input**: Only the structured evidence (not raw JSON) is sent to the LLM
+3. **Constrained Generation**: LLM rephrases using strict system prompts that enforce fact preservation
+4. **No Hallucinations**: LLM cannot introduce new facts, only rephrase existing evidence
+
+**Safety Features:**
+- PII redaction applied **before** evidence extraction
+- Evidence bundles include citation paths for traceability
+- Fallback to deterministic mode if LLM fails
+- No raw JSON sent to external APIs
+
+#### Supported LLM Providers
+
+**OpenAI:**
+- Models: `gpt-4o-mini`, `gpt-4o`, `gpt-4-turbo`, etc.
+- Cost-effective with `gpt-4o-mini` (~$0.15 per 1M tokens)
+- Fast response times
+
+**Anthropic Claude:**
+- Models: `claude-3-haiku-20240307`, `claude-3-sonnet-20240229`, `claude-3-opus-20240229`
+- Excellent at following instructions and maintaining accuracy
+- `haiku` is fastest and most cost-effective
+
+#### Configuration Options
+
+| Environment Variable | Default | Description |
+|---------------------|---------|-------------|
+| `LLM_PROVIDER` | `none` | `none`, `openai`, or `anthropic` |
+| `LLM_MODEL` | Provider-specific | Model identifier |
+| `OPENAI_API_KEY` | - | OpenAI API key (required for OpenAI) |
+| `ANTHROPIC_API_KEY` | - | Anthropic API key (required for Claude) |
+| `LLM_MAX_TOKENS` | `1500` | Maximum tokens for LLM response |
+| `LLM_TEMPERATURE` | `0.1` | Lower = more deterministic output |
+| `LLM_FALLBACK_TO_DETERMINISTIC` | `true` | Fall back if LLM fails |
 
 Modify `app/config.py` for additional tuning (top-K limits, streaming cadence, redaction patterns).
 
