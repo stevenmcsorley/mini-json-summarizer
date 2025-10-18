@@ -1,7 +1,7 @@
 import json
 
 import pytest
-from httpx import AsyncClient
+from httpx import ASGITransport, AsyncClient
 
 from app.config import get_settings
 from app.main import create_application
@@ -24,7 +24,7 @@ async def test_summarize_endpoint_returns_bullets(test_app):
         },
         "stream": False,
     }
-    async with AsyncClient(app=test_app, base_url="http://testserver") as client:
+    async with AsyncClient(transport=ASGITransport(app=test_app), base_url="http://testserver") as client:
         response = await client.post("/v1/summarize-json", json=payload)
     assert response.status_code == 200
     body = response.json()
@@ -49,7 +49,7 @@ async def test_streaming_format_emits_phase_objects(test_app):
             "metrics": [{"value": 1}, {"value": 2}, {"value": 3}],
         }
     }
-    async with AsyncClient(app=test_app, base_url="http://testserver") as client:
+    async with AsyncClient(transport=ASGITransport(app=test_app), base_url="http://testserver") as client:
         async with client.stream(
             "POST", "/v1/summarize-json", json=payload
         ) as response:
@@ -81,7 +81,7 @@ async def test_payload_too_large_error_structured(test_app):
     settings.max_payload_bytes = 10
     try:
         payload = {"json": {"blob": "x" * 64}}
-        async with AsyncClient(app=test_app, base_url="http://testserver") as client:
+        async with AsyncClient(transport=ASGITransport(app=test_app), base_url="http://testserver") as client:
             response = await client.post("/v1/summarize-json", json=payload)
         assert response.status_code == 413
         body = response.json()
@@ -98,7 +98,7 @@ async def test_depth_limit_error_structured(test_app):
     settings.max_json_depth = 2
     try:
         payload = {"json": {"a": {"b": {"c": 1}}}}
-        async with AsyncClient(app=test_app, base_url="http://testserver") as client:
+        async with AsyncClient(transport=ASGITransport(app=test_app), base_url="http://testserver") as client:
             response = await client.post("/v1/summarize-json", json=payload)
         assert response.status_code == 400
         body = response.json()
@@ -122,7 +122,7 @@ async def test_chat_endpoint_focuses_on_last_user_message(test_app):
             ],
         },
     }
-    async with AsyncClient(app=test_app, base_url="http://testserver") as client:
+    async with AsyncClient(transport=ASGITransport(app=test_app), base_url="http://testserver") as client:
         response = await client.post("/v1/chat", json=payload)
     assert response.status_code == 200
     body = response.json()
@@ -134,7 +134,7 @@ async def test_chat_endpoint_focuses_on_last_user_message(test_app):
 
 @pytest.mark.anyio
 async def test_invalid_json_body_structured(test_app):
-    async with AsyncClient(app=test_app, base_url="http://testserver") as client:
+    async with AsyncClient(transport=ASGITransport(app=test_app), base_url="http://testserver") as client:
         response = await client.post(
             "/v1/summarize-json",
             content="not valid json",
@@ -147,7 +147,7 @@ async def test_invalid_json_body_structured(test_app):
 
 @pytest.mark.anyio
 async def test_healthz_endpoint(test_app):
-    async with AsyncClient(app=test_app, base_url="http://testserver") as client:
+    async with AsyncClient(transport=ASGITransport(app=test_app), base_url="http://testserver") as client:
         response = await client.get("/healthz")
     assert response.status_code == 200
     body = response.json()
