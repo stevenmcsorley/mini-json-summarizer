@@ -33,11 +33,14 @@ class Settings(BaseSettings):
 
     # LLM settings
     llm_provider: str = Field(
-        "none", description="LLM provider: none, openai, anthropic"
+        "none", description="LLM provider: none, openai, anthropic, ollama"
     )
     llm_model: Optional[str] = Field(None, description="Model name for LLM provider")
     openai_api_key: Optional[str] = Field(None, validation_alias="OPENAI_API_KEY")
     anthropic_api_key: Optional[str] = Field(None, validation_alias="ANTHROPIC_API_KEY")
+    ollama_base_url: str = Field(
+        "http://localhost:11434", description="Ollama server base URL"
+    )
     llm_max_tokens: int = Field(1500, ge=100, le=4000)
     llm_temperature: float = Field(0.1, ge=0.0, le=2.0)
     llm_fallback_to_deterministic: bool = Field(

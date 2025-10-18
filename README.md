@@ -145,10 +145,37 @@ OPENAI_API_KEY=sk-proj-your-key-here
 # LLM_MODEL=claude-3-haiku-20240307
 # ANTHROPIC_API_KEY=sk-ant-your-key-here
 
+# OR Ollama Configuration (Local, No API Key Needed)
+# LLM_PROVIDER=ollama
+# LLM_MODEL=llama3.2
+# OLLAMA_BASE_URL=http://localhost:11434
+
 # Optional LLM settings
 LLM_MAX_TOKENS=1500
 LLM_TEMPERATURE=0.1
 LLM_FALLBACK_TO_DETERMINISTIC=true
+```
+
+**Using Ollama (Local LLM - No API Costs):**
+
+Ollama allows you to run LLMs completely locally without sending data to external services.
+
+1. Install Ollama from https://ollama.ai
+2. Pull a model: `ollama pull llama3.2`
+3. Start Ollama: `ollama serve` (usually starts automatically)
+4. Configure `.env`:
+```bash
+LLM_PROVIDER=ollama
+LLM_MODEL=llama3.2
+OLLAMA_BASE_URL=http://localhost:11434
+```
+
+Popular Ollama models:
+- `llama3.2` - Latest Llama model, good general performance
+- `mistral` - Fast and capable, good for JSON tasks
+- `phi` - Small and efficient, runs on lower-end hardware
+- `codellama` - Optimized for code understanding
+
 ```
 
 **2. Request LLM-powered summarization:**
@@ -206,14 +233,21 @@ curl -X POST http://localhost:8080/v1/summarize-json \
 - Excellent at following instructions and maintaining accuracy
 - `haiku` is fastest and most cost-effective
 
+**Ollama (Local):**
+- Models: `llama3.2`, `mistral`, `codellama`, `phi`, and many others
+- Runs completely locally on your machine - no API costs
+- No data sent to external services - perfect for sensitive data
+- Requires Ollama installed and running locally
+
 #### Configuration Options
 
 | Environment Variable | Default | Description |
 |---------------------|---------|-------------|
-| `LLM_PROVIDER` | `none` | `none`, `openai`, or `anthropic` |
+| `LLM_PROVIDER` | `none` | `none`, `openai`, `anthropic`, or `ollama` |
 | `LLM_MODEL` | Provider-specific | Model identifier |
 | `OPENAI_API_KEY` | - | OpenAI API key (required for OpenAI) |
 | `ANTHROPIC_API_KEY` | - | Anthropic API key (required for Claude) |
+| `OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama server URL (for Ollama) |
 | `LLM_MAX_TOKENS` | `1500` | Maximum tokens for LLM response |
 | `LLM_TEMPERATURE` | `0.1` | Lower = more deterministic output |
 | `LLM_FALLBACK_TO_DETERMINISTIC` | `true` | Fall back if LLM fails |
