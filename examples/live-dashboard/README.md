@@ -1,21 +1,13 @@
-# Live Error Monitoring Dashboard
+# 🛒 E-Commerce Error Monitoring Demo
 
-**Real-time operational dashboard** powered by Mini JSON Summarizer's SSE streaming and profiles system.
+**Real-world demonstration** of Mini JSON Summarizer with a complete e-commerce application and error monitoring dashboard.
 
-<img src="https://img.shields.io/badge/SSE-Real--time-brightgreen" />
-<img src="https://img.shields.io/badge/Profile-logs-blue" />
-<img src="https://img.shields.io/badge/Stack-Docker-blue" />
+## ✨ What You'll See
 
----
-
-## ✨ Features
-
-- **🔴 Live Error Aggregation** - Real-time error tracking via SSE
-- **🏥 Service Health Heatmap** - Red/Yellow/Green status indicators
-- **📈 Temporal Spike Detection** - Minute-by-minute error rate charts
-- **📊 Top-K Error Codes** - Weighted by frequency (504, 500, 401...)
-- **🎯 Profile-Powered** - Uses `logs` profile from parent Mini JSON Summarizer
-- **⚡ Zero Configuration** - `docker-compose up` and you're live
+1. **E-Commerce Store** (`http://localhost:3000`) - Real shopping experience with products, cart, checkout
+2. **Monitoring Dashboard** (`http://localhost:3001`) - Real-time error tracking powered by Mini JSON Summarizer
+3. **Intentional Errors** - Backend fails 30-40% of the time to demonstrate error monitoring
+4. **AI-Powered Summaries** - Natural language insights from error logs
 
 ---
 
@@ -23,321 +15,205 @@
 
 ```bash
 # From examples/live-dashboard directory
-docker-compose up
+docker-compose up --build
 
-# Open dashboard
-open http://localhost:3000
+# Open in your browser:
+# - E-Commerce:  http://localhost:3000
+# - Monitoring:  http://localhost:3001
 ```
 
-**That's it!** The dashboard will automatically start receiving live error data.
+**That's it!** Start shopping and watch errors appear in the monitoring dashboard.
 
 ---
 
-## 🎯 What You'll See
+## 🎯 How To Use
 
-### 1. **Top Errors Panel**
-```
-🔴 504 Gateway Timeout    (47)
-🟠 500 Internal Error     (23)
-🟡 401 Unauthorized       (12)
-```
+### 1. **Shop on E-Commerce Site**
+- Browse 8 products (mouse, keyboard, webcam, etc.)
+- Click "Add to Cart" buttons
+- Proceed to checkout
+- **30-40% of requests will fail** (intentionally)
 
-### 2. **Service Health Panel**
-```
-api-service     🔴 CRITICAL
-auth-service    🟡 DEGRADED
-worker-service  🟢 HEALTHY
-```
+### 2. **Watch Monitoring Dashboard**
+- Open `http://localhost:3001` in another tab/window
+- Click "🔄 Refresh Now" button
+- See:
+  - Total logs and error counts
+  - Top error codes (500, 409, 503, etc.)
+  - Error types (payment_error, inventory_error, etc.)
+  - AI-generated summary from Mini JSON Summarizer
+  - Recent log stream
 
-### 3. **Error Rate Timeline**
-Live Chart.js graph showing error spikes by minute
-
-### 4. **Raw Log Stream**
-Scrolling terminal view of incoming SSE events
-
----
-
-## 📦 Stack Components
-
-| Component | Technology | Purpose |
-|-----------|-----------|---------|
-| **Dashboard** | Vanilla JS + Tailwind | Beautiful UI with SSE client |
-| **Summarizer** | Parent Mini JSON Summarizer | Profiles-powered log analysis |
-| **Log Aggregator** | FastAPI HTTP server | Exposes /logs/last-5min endpoint |
-| **Services** | 3x FastAPI microservices | Generate realistic error logs |
-| **Fluentd** | Fluentd forward protocol | Receives logs from services |
-| **Orchestration** | Docker Compose | One-command stack startup |
+### 3. **Compare Side-by-Side**
+- Put e-commerce site on left half of screen
+- Put monitoring dashboard on right half
+- Click "Add to Cart" → Click "Refresh Now" → See errors appear!
 
 ---
 
-## 🔧 Architecture
+## 📦 Architecture
 
 ```
-┌──────────────┐
-│ Microservices│ (api, auth, worker)
-│  Generate    │
-│  JSON Logs   │ (Fluentd logger)
-└──────┬───────┘
-       │ forward
-       ▼
-┌──────────────┐
-│   Fluentd    │ (receives logs)
-│   :24224     │
-└──────┬───────┘
-       │ HTTP POST
-       ▼
-┌──────────────┐
-│     Log      │ (in-memory buffer)
-│  Aggregator  │ GET /logs/last-5min
-│   :9880      │
-└──────┬───────┘
-       │ json_url
-       ▼
-┌──────────────┐
-│ Mini JSON    │ (REAL parent summarizer)
-│ Summarizer   │ profile=logs, stream=true
-│  :8080       │ refresh_interval=5s
-└──────┬───────┘
-       │ SSE (EventSource)
-       ▼
-┌──────────────┐
-│  Dashboard   │ (REAL connection)
-│   :3000      │ Updates every 5 seconds
-└──────────────┘
-```
-
-**Key Flow:**
-1. **Services** emit JSON logs → Fluentd (forward protocol)
-2. **Fluentd** forwards logs → Log Aggregator (HTTP POST /ingest)
-3. **Log Aggregator** buffers last 5 minutes → HTTP endpoint
-4. **Summarizer** polls endpoint every 5s → Runs `logs` profile
-5. **Dashboard** receives SSE events → Updates UI in real-time
-
----
-
-## 🎭 Simulate Incidents
-
-### Spike 504 Errors
-```bash
-./scripts/generate-incidents.sh spike-504
-```
-
-**What happens:**
-- API service error rate jumps to 80%
-- Dashboard shows 504 dominating Top Errors
-- Error chart spikes
-- Service health goes RED
-
-### Gradual Token Expiry
-```bash
-./scripts/generate-incidents.sh token-expiry-wave
-```
-
-**What happens:**
-- Auth service 401 errors climb gradually
-- Dashboard shows rolling pattern in timeline
-- Service degrades from GREEN → YELLOW
-
-### Total Outage
-```bash
-./scripts/generate-incidents.sh total-failure
-```
-
-**What happens:**
-- All services go critical
-- Error count explodes
-- Dashboard fills with red indicators
-
----
-
-## 🔌 How SSE Connection Works
-
-The dashboard connects to the **actual Mini JSON Summarizer** from the parent directory:
-
-```javascript
-// dashboard/app.js (production version)
-const eventSource = new EventSource(
-  'http://localhost:8080/v1/summarize-json?' +
-  new URLSearchParams({
-    profile: 'logs',           // Use logs profile
-    json_url: 'http://fluentd:9880/logs/last-5min',
-    stream: true,              // Enable SSE
-    focus: ['level', 'service', 'code']
-  })
-);
-
-eventSource.addEventListener('message', (event) => {
-  const data = JSON.parse(event.data);
-
-  if (data.phase === 'summary') {
-    // Update dashboard with bullet.evidence
-    updateTopErrors(data.bullet.evidence.code.top);
-    updateServiceHealth(data.bullet.evidence.service.top);
-    updateChart(data.bullet.evidence.level.top);
-  }
-
-  if (data.phase === 'complete') {
-    console.log('Summary complete:', data.evidence_stats);
-  }
-});
+┌──────────────────┐
+│  E-Commerce      │  (Products, Cart, Checkout)
+│  Frontend :3000  │  User clicks "Buy"
+└────────┬─────────┘
+         │ HTTP
+         ▼
+┌──────────────────┐
+│  E-Commerce API  │  (30-40% failure rate)
+│  Backend :8000   │  Intentional errors
+└────────┬─────────┘
+         │ Fluentd forward
+         ▼
+┌──────────────────┐
+│   Fluentd        │  (Log aggregation)
+│   :24224         │
+└────────┬─────────┘
+         │ HTTP POST
+         ▼
+┌──────────────────┐
+│  Log Aggregator  │  (5-minute buffer)
+│  :9880           │  GET /logs/last-5min
+└────────┬─────────┘
+         │ json param
+         ▼
+┌──────────────────┐
+│ Mini JSON        │  (Profile: logs)
+│ Summarizer :8080 │  AI insights
+└────────┬─────────┘
+         │ API response
+         ▼
+┌──────────────────┐
+│  Monitoring      │  (Manual refresh)
+│  Dashboard :3001 │  Shows errors
+└──────────────────┘
 ```
 
 ---
 
-## 🎨 Customization
+## 🎭 Error Scenarios
 
-### Change Update Interval
+### Cart Errors (30% failure rate)
+- **500**: Database connection timeout
+- **409**: Product out of stock
+- **400**: Invalid product ID
+- **503**: Cart service unavailable
 
-Edit `docker-compose.yml`:
+### Checkout Errors (40% failure rate)
+- **402**: Payment processing failed
+- **409**: Items no longer available
+- **403**: Fraud detection blocked transaction
+- **504**: Payment gateway timeout
+- **500**: Internal server error
+
+### Success Case
+- **200**: Operation completed successfully
+
+---
+
+## 📊 Monitoring Dashboard Features
+
+### Top Stats
+- **Total Logs**: All requests (success + errors)
+- **Error Count**: Failed requests
+- **Success Rate**: Percentage of successful operations
+- **Most Common Error**: HTTP code appearing most frequently
+
+### Charts
+- **Top Error Codes**: Bar chart of HTTP status codes
+- **Error Types**: Distribution of error categories
+- **Recent Logs**: Last 20 log entries with timestamps
+
+### AI Summary
+- Powered by **Mini JSON Summarizer** `logs` profile
+- Natural language insights from error patterns
+- Automatic categorization and statistics
+
+---
+
+## 🛠️ Configuration
+
+Edit `docker-compose.yml` to adjust error rates:
+
 ```yaml
-summarizer:
+ecommerce-api:
   environment:
-    STREAMING_CHUNK_DELAY_MS: "100"  # Faster updates
+    CART_ERROR_RATE: "0.30"      # 30% of cart requests fail
+    CHECKOUT_ERROR_RATE: "0.40"  # 40% of checkouts fail
 ```
 
-### Adjust Error Rates
-
-Tune service error rates:
-```yaml
-api-service:
-  environment:
-    ERROR_RATE: "0.30"  # 30% errors (high)
-
-auth-service:
-  environment:
-    ERROR_RATE: "0.05"  # 5% errors (low)
-```
-
-### Use Different Profile
-
-Change to metrics profile:
-```javascript
-// dashboard/app.js
-const eventSource = new EventSource(
-  'http://localhost:8080/v1/summarize-json?' +
-  new URLSearchParams({
-    profile: 'metrics',  // Changed from 'logs'
-    stream: true
-  })
-);
-```
+Set to `"0.00"` for 100% success rate (no errors).
 
 ---
 
-## 📊 Sample Dashboard Output
+## 🎬 Demo Flow
 
-### Top Errors (Real SSE Data)
-```json
-{
-  "phase": "summary",
-  "bullet": {
-    "text": "code: 504 (47), 500 (23), 401 (12) | service: api (52), auth (18), worker (12)",
-    "evidence": {
-      "code": {
-        "top": [
-          [504, 47],
-          [500, 23],
-          [401, 12]
-        ]
-      },
-      "service": {
-        "top": [
-          ["api", 52],
-          ["auth", 18],
-          ["worker", 12]
-        ]
-      }
-    },
-    "citations": [
-      {"path": "$.logs[*].code"},
-      {"path": "$.logs[*].service"}
-    ]
-  }
-}
-```
-
-This data automatically populates the dashboard panels!
+1. **Start the stack**: `docker-compose up`
+2. **Open e-commerce**: http://localhost:3000
+3. **Open monitoring**: http://localhost:3001 (in another tab)
+4. **Click "Add to Cart"** on several products
+5. **Click "Refresh Now"** on monitoring dashboard
+6. **See errors appear** with AI-generated insights
+7. **Try checkout** to trigger payment errors
+8. **Refresh dashboard** again to see new errors
 
 ---
 
-## 🐛 Troubleshooting
+## 🔧 Troubleshooting
 
-### Dashboard shows "Waiting for data..."
+**Dashboard shows "No logs"?**
+- Make sure you clicked "Add to Cart" in the e-commerce site first
+- Click "Refresh Now" button on monitoring dashboard
+- Check console for errors (F12)
 
-**Check:**
-```bash
-# Verify summarizer is running
-curl http://localhost:8080/healthz
+**Can't add items to cart?**
+- Check that ecommerce-api is running: `docker-compose logs ecommerce-api`
+- Verify port 8000 is not blocked
 
-# Verify services are generating logs
-docker-compose logs api-service | tail -n 20
+**Summarizer errors?**
+- Check that summarizer built successfully
+- View logs: `docker-compose logs summarizer`
+- Ensure profiles are loaded
 
-# Verify Fluentd is receiving logs
-docker-compose logs fluentd | tail -n 20
+---
+
+## 📄 Files
+
 ```
-
-### SSE Connection Fails
-
-**Check CORS:**
-```bash
-# Summarizer should allow dashboard origin
-# In parent ../../app/config.py
-ALLOW_ORIGINS: ["*"]
+live-dashboard/
+├── ecommerce/              # E-commerce frontend
+│   ├── index.html          # Product catalog, cart UI
+│   └── app.js              # Shopping logic
+├── ecommerce-api/          # Backend API
+│   ├── server.py           # FastAPI with intentional errors
+│   └── Dockerfile
+├── monitoring/             # Error monitoring dashboard
+│   ├── index.html          # Dashboard UI
+│   └── app.js              # Fetch logs + summarize
+├── log-aggregator/         # Log buffering service
+│   ├── server.py           # Simple HTTP buffer
+│   └── Dockerfile
+├── logging/fluentd/        # Log collection
+│   └── fluent.conf
+└── docker-compose.yml      # Complete stack
 ```
 
 ---
 
-## 🎓 Learning Points
+## 🎯 Key Differences from Complex Version
 
-This example demonstrates:
-
-1. **SSE Streaming** - Real-time updates without WebSockets
-2. **Profiles System** - `logs` profile handles all extraction logic
-3. **Evidence-Based UI** - Dashboard uses `evidence` field for data
-4. **JSONPath Citations** - Every claim traceable to source
-5. **Production Patterns** - Fluentd → Summarizer → Dashboard (real ops stack)
-
----
-
-## 📦 Services
-
-| Service | Port | Purpose |
-|---------|------|---------|
-| `summarizer` | 8080 | **Parent Mini JSON Summarizer** |
-| `api-service` | 8081 | Generates API errors (504, 500, 401) |
-| `auth-service` | 8082 | Generates auth errors (401, 403, 429) |
-| `worker-service` | 8083 | Generates job errors (504, 500, 503) |
-| `fluentd` | 24224 | Log aggregation |
-| `dashboard` | 3000 | Live monitoring UI |
+**What Changed:**
+- ✅ **No polling** - Manual refresh button only
+- ✅ **No SSE streaming** - Simple POST requests
+- ✅ **Real frontend** - Actual e-commerce UI with buttons
+- ✅ **Simplified flow** - Click → Error → Refresh → See
+- ✅ **No PC slowdown** - Removed resource-intensive polling loop
+- ✅ **Stable charts** - No infinite vertical expansion
+- ✅ **Better demo** - Actually shows real-world use case
 
 ---
 
-## 🚀 Next Steps
-
-1. **Add Hybrid LLM** - Get natural language summaries
-   ```javascript
-   profile: 'logs',
-   engine: 'hybrid'  // Add this
-   ```
-
-2. **Baseline Comparison** - Detect regressions
-   ```javascript
-   baseline_json_url: 'http://fluentd:9880/logs/yesterday'
-   ```
-
-3. **Custom Profiles** - Create your own extractors
-   ```yaml
-   # ../../profiles/my-ops-profile.yaml
-   id: my-ops-profile
-   extractors:
-     - categorical:error_category
-     - numeric:response_time_ms
-   ```
-
----
-
-## 📄 License
+## 📝 License
 
 MIT © 2025 Steven McSorley
-
-Part of [Mini JSON Summarizer](https://github.com/stevenmcsorley/mini-json-summarizer) project.

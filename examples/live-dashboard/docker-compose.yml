@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  # The actual Mini JSON Summarizer (parent directory)
+  # Mini JSON Summarizer (from parent directory)
   summarizer:
     build:
       context: ../..
@@ -14,82 +14,65 @@ services:
       PII_REDACTION_ENABLED: "true"
       ALLOW_ORIGINS: '["*"]'
     networks:
-      - monitoring
+      - ecommerce
 
-  # Demo API service (generates realistic errors)
-  api-service:
-    build: ./app/api-service
+  # E-Commerce Backend API (with intentional errors)
+  ecommerce-api:
+    build: ./ecommerce-api
     environment:
-      SERVICE_NAME: "api"
-      ERROR_RATE: "0.15"
-      PORT: "8081"
+      CART_ERROR_RATE: "0.30"
+      CHECKOUT_ERROR_RATE: "0.40"
     ports:
-      - "8081:8081"
+      - "8000:8000"
+    depends_on:
+      - fluentd
     networks:
-      - monitoring
+      - ecommerce
 
-  # Demo Auth service (token/auth errors)
-  auth-service:
-    build: ./app/auth-service
-    environment:
-      SERVICE_NAME: "auth"
-      ERROR_RATE: "0.08"
-      PORT: "8082"
-    ports:
-      - "8082:8082"
-    networks:
-      - monitoring
-
-  # Demo Worker service (timeout/queue errors)
-  worker-service:
-    build: ./app/worker-service
-    environment:
-      SERVICE_NAME: "worker"
-      TIMEOUT_RATE: "0.20"
-      PORT: "8083"
-    ports:
-      - "8083:8083"
-    networks:
-      - monitoring
-
-  # Log aggregator - exposes HTTP endpoint for recent logs
+  # Log Aggregator (simple buffer)
   log-aggregator:
     build: ./log-aggregator
     ports:
       - "9880:9880"
     networks:
-      - monitoring
+      - ecommerce
 
-  # Fluentd - aggregates JSON logs from all services
+  # Fluentd (log collection)
   fluentd:
     image: fluent/fluentd:v1.16-debian
     volumes:
       - ./logging/fluentd/fluent.conf:/fluentd/etc/fluent.conf
-      - fluentd-buffer:/fluentd/log
     ports:
       - "24224:24224"
       - "24224:24224/udp"
     depends_on:
       - log-aggregator
     networks:
-      - monitoring
+      - ecommerce
 
-  # Beautiful dashboard with SSE
-  dashboard:
+  # E-Commerce Frontend
+  ecommerce-frontend:
     image: nginx:alpine
     volumes:
-      - ./dashboard:/usr/share/nginx/html:ro
+      - ./ecommerce:/usr/share/nginx/html:ro
     ports:
       - "3000:80"
+    networks:
+      - ecommerce
+
+  # Monitoring Dashboard
+  monitoring-dashboard:
+    image: nginx:alpine
+    volumes:
+      - ./monitoring:/usr/share/nginx/html:ro
+    ports:
+      - "3001:80"
     depends_on:
       - summarizer
-      - fluentd
+      - log-aggregator
     networks:
-      - monitoring
+      - ecommerce
 
 networks:
-  monitoring:
+  ecommerce:
     driver: bridge
-
-volumes:
-  fluentd-buffer:

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TechStore - E-Commerce Demo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .product-card {
+            transition: transform 0.2s;
+        }
+        .product-card:hover {
+            transform: translateY(-4px);
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+
+    <!-- Header -->
+    <header class="bg-white shadow-sm sticky top-0 z-50">
+        <div class="container mx-auto px-6 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-2">
+                    <span class="text-3xl">🛒</span>
+                    <h1 class="text-2xl font-bold text-gray-800">TechStore</h1>
+                </div>
+                <div class="flex items-center space-x-6">
+                    <button onclick="viewCart()" class="relative">
+                        <span class="text-2xl">🛍️</span>
+                        <span id="cart-count" class="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">0</span>
+                    </button>
+                    <a href="/dashboard/" target="_blank" class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700">
+                        📊 Monitoring Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Cart Summary (Hidden by default) -->
+    <div id="cart-summary" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+        <div class="bg-white rounded-2xl p-8 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold">Shopping Cart</h2>
+                <button onclick="closeCart()" class="text-gray-500 hover:text-gray-700">✕</button>
+            </div>
+            <div id="cart-items" class="space-y-4 mb-6">
+                <!-- Cart items will be inserted here -->
+            </div>
+            <div class="border-t pt-4">
+                <div class="flex justify-between text-xl font-bold mb-4">
+                    <span>Total:</span>
+                    <span id="cart-total">$0.00</span>
+                </div>
+                <button onclick="checkout()" class="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700">
+                    Proceed to Checkout
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-6 py-8">
+
+        <!-- Hero Section -->
+        <div class="bg-gradient-to-r from-purple-600 to-blue-600 rounded-2xl p-8 mb-8 text-white">
+            <h2 class="text-3xl font-bold mb-2">Welcome to TechStore Demo</h2>
+            <p class="text-lg opacity-90">Shop products and watch errors appear in the monitoring dashboard in real-time!</p>
+            <p class="text-sm mt-2 opacity-75">⚠️ This is a demo - some operations intentionally fail to showcase error monitoring</p>
+        </div>
+
+        <!-- Product Grid -->
+        <h3 class="text-2xl font-bold mb-6">Featured Products</h3>
+        <div id="products-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <!-- Products will be loaded here -->
+        </div>
+
+        <!-- Toast Notifications -->
+        <div id="toast" class="hidden fixed bottom-4 right-4 bg-gray-800 text-white px-6 py-4 rounded-lg shadow-lg">
+            <span id="toast-message"></span>
+        </div>
+
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>
