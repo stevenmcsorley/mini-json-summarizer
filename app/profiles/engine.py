@@ -8,7 +8,6 @@ from app.profiles.extractors import extract_with_profile_extractors
 from app.profiles.loader import get_profile_registry
 from app.profiles.models import Profile
 from app.summarizer.engines.base import SummarizationEngine
-from app.summarizer.engines.deterministic import DeterministicEngine
 from app.summarizer.models import EvidenceBundle, SummarizationRequest
 
 logger = logging.getLogger(__name__)
@@ -91,7 +90,5 @@ def get_engine_for_profile(
     if not profile:
         return base_engine
 
-    # Create deterministic engine for backfill
-    deterministic = DeterministicEngine()
-
-    return ProfileEngine(profile, deterministic)
+    # Use the provided base_engine for backfill (supports llm, hybrid, etc.)
+    return ProfileEngine(profile, base_engine)
