@@ -7,20 +7,24 @@ from pydantic import (
     HttpUrl,
     field_validator,
     model_validator,
-    AliasChoices,   # <-- add this
+    AliasChoices,  # <-- add this
 )
 
 EngineLiteral = Literal["deterministic", "llm", "hybrid"]
 LengthLiteral = Literal["short", "medium", "long"]
-StyleLiteral  = Literal["bullets", "narrative", "kpi-block", "mixed"]
+StyleLiteral = Literal["bullets", "narrative", "kpi-block", "mixed"]
 
 
 class SummarizeRequestModel(BaseModel):
     # keep ONE model_config
-    model_config = ConfigDict(protected_namespaces=(), populate_by_name=True, extra="forbid")
+    model_config = ConfigDict(
+        protected_namespaces=(), populate_by_name=True, extra="forbid"
+    )
 
     # inline payload accepted as "json"
-    payload: Optional[Any] = Field(default=None, alias="json", description="Inline JSON payload.")
+    payload: Optional[Any] = Field(
+        default=None, alias="json", description="Inline JSON payload."
+    )
 
     # accept BOTH "json_url" and "url" on input; serialize as "json_url"
     payload_url: Optional[HttpUrl] = Field(
@@ -30,8 +34,12 @@ class SummarizeRequestModel(BaseModel):
         description="Remote JSON resource URL.",
     )
 
-    focus: List[str] = Field(default_factory=list, description="Focus instructions or JSON paths.")
-    engine: EngineLiteral = Field(default="deterministic")  # <-- set to deterministic if that's current
+    focus: List[str] = Field(
+        default_factory=list, description="Focus instructions or JSON paths."
+    )
+    engine: EngineLiteral = Field(
+        default="deterministic"
+    )  # <-- set to deterministic if that's current
     length: LengthLiteral = Field(default="medium")
     style: StyleLiteral = Field(default="bullets")
     template: Optional[str] = Field(default=None)
@@ -51,7 +59,9 @@ class SummarizeRequestModel(BaseModel):
     @model_validator(mode="after")
     def ensure_payload_source(self) -> "SummarizeRequestModel":
         if self.payload is None and self.payload_url is None:
-            raise ValueError("Either `json` (inline) or `json_url`/`url` must be provided.")
+            raise ValueError(
+                "Either `json` (inline) or `json_url`/`url` must be provided."
+            )
         return self
 
     @field_validator("focus", mode="before")
@@ -108,7 +118,9 @@ class ChatMessageModel(BaseModel):
 
 
 class ChatRequestModel(BaseModel):
-    model_config = ConfigDict(protected_namespaces=(), populate_by_name=True, extra="forbid")
+    model_config = ConfigDict(
+        protected_namespaces=(), populate_by_name=True, extra="forbid"
+    )
 
     messages: List[ChatMessageModel]
 
