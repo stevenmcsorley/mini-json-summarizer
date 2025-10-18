@@ -300,6 +300,23 @@ Output Format:
         self, request: SummarizationRequest, settings: Settings
     ) -> EvidenceBundle:
         """
+        Synchronous summarize method (fallback for compatibility).
+
+        Returns deterministic results. Use summarize_async for LLM-powered summarization.
+        """
+        # Get deterministic evidence as fallback
+        if self.deterministic_engine:
+            return self.deterministic_engine.summarize(request, settings)
+        else:
+            from app.summarizer.engines.deterministic import DeterministicEngine
+
+            det_engine = DeterministicEngine()
+            return det_engine.summarize(request, settings)
+
+    async def summarize_async(
+        self, request: SummarizationRequest, settings: Settings
+    ) -> EvidenceBundle:
+        """
         Summarize using LLM with evidence-only input.
 
         Args:
@@ -313,19 +330,80 @@ Output Format:
         if self.deterministic_engine:
             det_bundle = self.deterministic_engine.summarize(request, settings)
         else:
-            # Fallback: create minimal bundle
             from app.summarizer.engines.deterministic import DeterministicEngine
 
             det_engine = DeterministicEngine()
             det_bundle = det_engine.summarize(request, settings)
 
-        # NOTE: Async LLM calls would require refactoring the entire pipeline
-        # For now, log that LLM is configured but not yet fully integrated
-        logger.warning(
-            "LLM engine returning deterministic results (async integration pending)"
-        )
+        # Build evidence dictionary from deterministic bundle
+        evidence = {
+            "bullets": [
+                {
+                    "text": bullet.text,
+                    "citations": [{"path": c.path} for c in bullet.citations],
+                    "evidence": bullet.evidence,
+                }
+                for bullet in det_bundle.bullets
+            ]
+        }
 
-        return det_bundle
+        # Generate LLM response
+        try:
+            system_prompt = self.get_system_prompt()
+            user_prompt = self.create_user_prompt(evidence, request.focus)
+
+            response_format = {
+                "type": "object",
+                "properties": {
+                    "bullets": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "text": {"type": "string"},
+                                "citations": {"type": "array"},
+                                "evidence": {"type": "object"},
+                            },
+                        },
+                    }
+                },
+            }
+
+            llm_response = await self.provider.generate(
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                response_format=response_format,
+                max_tokens=settings.llm_max_tokens,
+            )
+
+            # Parse LLM response and create new bullets
+            from app.summarizer.models import SummaryBullet, Citation
+
+            new_bullets = []
+            for bullet_data in llm_response.get("bullets", []):
+                citations = [
+                    Citation(path=c if isinstance(c, str) else c.get("path", ""))
+                    for c in bullet_data.get("citations", [])
+                ]
+                new_bullets.append(
+                    SummaryBullet(
+                        text=bullet_data.get("text", ""),
+                        citations=citations,
+                        evidence=bullet_data.get("evidence", {}),
+                    )
+                )
+
+            # Return new bundle with LLM-generated bullets
+            det_bundle.bullets = new_bullets
+            det_bundle.engine = "llm"
+            return det_bundle
+
+        except Exception as e:
+            logger.error(f"LLM generation failed: {e}")
+            if settings.llm_fallback_to_deterministic:
+                logger.warning("Falling back to deterministic results")
+                return det_bundle
+            raise
 
 
 class HybridEngine(SummarizationEngine):
@@ -356,14 +434,24 @@ class HybridEngine(SummarizationEngine):
         self, request: SummarizationRequest, settings: Settings
     ) -> EvidenceBundle:
         """
+        Synchronous summarize method (fallback for compatibility).
+
+        Returns deterministic results. Use summarize_async for LLM-powered summarization.
+        """
+        return self.deterministic_engine.summarize(request, settings)
+
+    async def summarize_async(
+        self, request: SummarizationRequest, settings: Settings
+    ) -> EvidenceBundle:
+        """
         Summarize using hybrid approach.
 
         1. Extract evidence deterministically
-        2. Rephrase with LLM while preserving facts (future)
+        2. Rephrase with LLM while preserving facts
         3. Fall back to deterministic on LLM failure
         """
         try:
-            return self.llm_engine.summarize(request, settings)
+            return await self.llm_engine.summarize_async(request, settings)
         except Exception as e:
             logger.warning(f"Hybrid mode falling back to deterministic: {e}")
             return self.deterministic_engine.summarize(request, settings)
