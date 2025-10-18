@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import List, Dict, Any
 from collections import deque
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import uvicorn
@@ -38,14 +38,27 @@ async def health_check():
 
 
 @app.post("/ingest")
-async def ingest_log(log_entry: Dict[str, Any]):
+async def ingest_log(request: Request):
     """
-    Receives logs from Fluentd forward output.
-    Adds timestamp and stores in buffer.
+    Receives logs from Fluentd HTTP output.
+    Fluentd sends raw JSON string in body.
     """
-    log_entry["ingested_at"] = datetime.utcnow().isoformat()
-    LOG_BUFFER.append(log_entry)
-    return {"status": "ok"}
+    try:
+        body = await request.body()
+        body_str = body.decode('utf-8')
+
+        # Parse the JSON log entry
+        log_entry = json.loads(body_str)
+
+        # Add ingestion timestamp
+        log_entry["ingested_at"] = datetime.utcnow().isoformat()
+        LOG_BUFFER.append(log_entry)
+
+        return {"status": "ok", "buffered": len(LOG_BUFFER)}
+    except json.JSONDecodeError as e:
+        return {"status": "error", "message": f"Invalid JSON: {e}"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
 
 @app.get("/logs/last-5min")

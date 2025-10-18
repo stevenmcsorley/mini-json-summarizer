@@ -54,6 +54,40 @@
     <!-- Main Dashboard -->
     <main class="container mx-auto px-6 py-8">
 
+        <!-- Manual Error Trigger Panel -->
+        <div class="glass rounded-2xl p-6 mb-6">
+            <h2 class="text-lg font-semibold mb-4 flex items-center">
+                <span class="text-2xl mr-2">🎯</span>
+                Trigger Errors Manually
+            </h2>
+            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+                <button onclick="triggerError('api', 10)" class="bg-red-500/20 hover:bg-red-500/30 border border-red-500/50 rounded-lg px-4 py-3 transition-colors">
+                    <div class="font-semibold">API Service</div>
+                    <div class="text-sm text-gray-400">10 errors</div>
+                </button>
+                <button onclick="triggerError('auth', 10)" class="bg-yellow-500/20 hover:bg-yellow-500/30 border border-yellow-500/50 rounded-lg px-4 py-3 transition-colors">
+                    <div class="font-semibold">Auth Service</div>
+                    <div class="text-sm text-gray-400">10 errors</div>
+                </button>
+                <button onclick="triggerError('worker', 10)" class="bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/50 rounded-lg px-4 py-3 transition-colors">
+                    <div class="font-semibold">Worker Service</div>
+                    <div class="text-sm text-gray-400">10 errors</div>
+                </button>
+                <button onclick="triggerStorm()" class="bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/50 rounded-lg px-4 py-3 transition-colors">
+                    <div class="font-semibold">Error Storm</div>
+                    <div class="text-sm text-gray-400">All services</div>
+                </button>
+                <button onclick="triggerSpike()" class="bg-orange-500/20 hover:bg-orange-500/30 border border-orange-500/50 rounded-lg px-4 py-3 transition-colors">
+                    <div class="font-semibold">504 Spike</div>
+                    <div class="text-sm text-gray-400">Gateway timeout</div>
+                </button>
+                <button onclick="clearLogs()" class="bg-gray-500/20 hover:bg-gray-500/30 border border-gray-500/50 rounded-lg px-4 py-3 transition-colors">
+                    <div class="font-semibold">Clear Logs</div>
+                    <div class="text-sm text-gray-400">Reset display</div>
+                </button>
+            </div>
+        </div>
+
         <!-- Top Row: Error Stats + Service Health -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
 

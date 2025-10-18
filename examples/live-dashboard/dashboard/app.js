@@ -57,48 +57,69 @@ function initChart() {
 
 // Connect to REAL SSE stream from Mini JSON Summarizer
 function connectSSE() {
-    const params = new URLSearchParams({
-        profile: 'logs',
-        json_url: 'http://log-aggregator:9880/logs/last-5min',
-        stream: true,
-        focus: JSON.stringify(['level', 'service', 'code']),
-        refresh_interval: '5'
-    });
+    console.log('Starting streaming summarization polling...');
+    updateConnectionStatus('connected');
 
-    const url = `http://localhost:8080/v1/summarize-json?${params}`;
-    console.log('Connecting to SSE:', url);
+    // Poll the summarizer every 10 seconds (reduced to prevent PC slowdown)
+    pollSummarizer();
+    setInterval(pollSummarizer, 10000);
+}
 
-    const eventSource = new EventSource(url);
+async function pollSummarizer() {
+    try {
+        const response = await fetch('http://localhost:8080/v1/summarize-json', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                json_url: 'http://log-aggregator:9880/logs/last-5min',
+                profile: 'logs',
+                stream: true,
+                focus: ['level', 'service', 'code']
+            })
+        });
 
-    eventSource.addEventListener('message', (event) => {
-        try {
-            const data = JSON.parse(event.data);
-            console.log('SSE message received:', data);
-
-            if (data.phase === 'summary') {
-                handleSSEMessage(data);
-            }
-        } catch (error) {
-            console.error('Error parsing SSE message:', error);
+        if (!response.ok) {
+            console.error('Summarizer error:', response.status, response.statusText);
+            updateConnectionStatus('error');
+            return;
         }
-    });
 
-    eventSource.addEventListener('error', (error) => {
-        console.error('SSE connection error:', error);
-        // Attempt to reconnect after 5 seconds
-        setTimeout(() => {
-            console.log('Attempting to reconnect...');
-            eventSource.close();
-            connectSSE();
-        }, 5000);
-    });
+        // Read SSE stream
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
 
-    eventSource.addEventListener('open', () => {
-        console.log('SSE connection established');
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+
+            // Process complete SSE messages
+            const lines = buffer.split('\n\n');
+            buffer = lines.pop(); // Keep incomplete message in buffer
+
+            for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                    try {
+                        const data = JSON.parse(line.substring(6));
+                        if (data.phase === 'summary') {
+                            handleSSEMessage(data);
+                        }
+                    } catch (error) {
+                        console.error('Error parsing SSE data:', error);
+                    }
+                }
+            }
+        }
+
         updateConnectionStatus('connected');
-    });
-
-    return eventSource;
+    } catch (error) {
+        console.error('Polling error:', error);
+        updateConnectionStatus('error');
+    }
 }
 
 // Update connection status indicator
@@ -234,13 +255,14 @@ function updateErrorChart(levels) {
     errorChart.data.labels.push(now);
     errorChart.data.datasets[0].data.push(errorCount);
 
-    // Keep last 20 data points
+    // Keep last 20 data points (not infinite)
     if (errorChart.data.labels.length > 20) {
         errorChart.data.labels.shift();
         errorChart.data.datasets[0].data.shift();
     }
 
-    errorChart.update();
+    // Use 'none' mode to prevent animations that cause performance issues
+    errorChart.update('none');
 }
 
 // Add log entry to stream
@@ -263,6 +285,56 @@ function addLogEntry(text) {
 // Clear logs
 function clearLogs() {
     document.getElementById('log-stream').innerHTML = '';
+    eventCount = 0;
+    document.getElementById('event-counter').textContent = '0 events';
+}
+
+// Trigger errors on a specific service
+async function triggerError(service, count = 10) {
+    const ports = { api: 8081, auth: 8082, worker: 8083 };
+    const port = ports[service];
+
+    if (!port) {
+        console.error('Unknown service:', service);
+        return;
+    }
+
+    console.log(`Triggering ${count} requests to ${service} service...`);
+
+    // Make parallel requests to trigger errors
+    const promises = [];
+    for (let i = 0; i < count; i++) {
+        const endpoint = service === 'api' ? '/api/users' :
+                        service === 'auth' ? '/auth/login' :
+                        '/jobs/process';
+
+        promises.push(
+            fetch(`http://localhost:${port}${endpoint}`, {
+                method: service === 'api' ? 'GET' : 'POST'
+            }).catch(err => console.log(`Request ${i} failed (expected)`))
+        );
+    }
+
+    await Promise.all(promises);
+    console.log(`✅ Triggered ${count} requests to ${service} service`);
+}
+
+// Trigger error storm across all services
+async function triggerStorm() {
+    console.log('🔥 Triggering error storm...');
+    await Promise.all([
+        triggerError('api', 20),
+        triggerError('auth', 20),
+        triggerError('worker', 20)
+    ]);
+    console.log('✅ Error storm complete');
+}
+
+// Trigger 504 spike
+async function triggerSpike() {
+    console.log('⚡ Triggering 504 spike...');
+    await triggerError('api', 50);
+    console.log('✅ 504 spike complete');
 }
 
 // Helper: Get error name from code
