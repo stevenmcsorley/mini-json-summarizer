@@ -31,4 +31,6 @@ dev = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"
-anyio_backends = ["asyncio"]
+
+[tool.anyio]
+backends = ["asyncio"]
