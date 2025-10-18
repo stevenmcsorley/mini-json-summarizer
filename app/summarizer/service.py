@@ -101,9 +101,7 @@ def summarize(
 ) -> EvidenceBundle:
     """Route a summarization request to the configured engine."""
     settings = settings or get_settings()
-    engine_name = (
-        request.engine if request.engine in registry._engines else "deterministic"
-    )
-    engine = registry.resolve(engine_name, settings)
+    # Let resolve() handle engine lookup and initialization
+    engine = registry.resolve(request.engine, settings)
     bundle = engine.summarize(request, settings)
     return bundle
