@@ -85,6 +85,15 @@ services:
     networks:
       - ecommerce
 
+  # Traffic Generator (auto-generates API requests)
+  traffic-generator:
+    build: ./traffic-generator
+    depends_on:
+      - ecommerce-api
+    networks:
+      - ecommerce
+    restart: unless-stopped
+
 networks:
   ecommerce:
     driver: bridge
