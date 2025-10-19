@@ -23,6 +23,7 @@ class SummaryBullet:
     text: str
     citations: List[Citation] = field(default_factory=list)
     evidence: Dict[str, Any] = field(default_factory=dict)
+    extractors: List[Dict[str, Any]] = field(default_factory=list)
 
 
 @dataclass(slots=True)

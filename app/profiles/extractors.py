@@ -5,12 +5,34 @@ from __future__ import annotations
 import logging
 from collections import defaultdict
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, Iterator, List, Optional, Set, Tuple
 
 from app.summarizer.json_path import iter_path_values
 from app.summarizer.models import Citation, SummaryBullet
 
 logger = logging.getLogger(__name__)
+
+
+def _iter_all_field_values(
+    payload: Any, parent_path: str = "$"
+) -> Iterator[Tuple[str, Any]]:
+    """
+    Recursively iterate over all fields in a JSON payload.
+
+    Yields:
+        (path, value) tuples for every field in the JSON structure
+    """
+    if isinstance(payload, dict):
+        for key, value in payload.items():
+            field_path = f"{parent_path}.{key}"
+            yield (field_path, value)
+            # Recurse into nested structures
+            yield from _iter_all_field_values(value, field_path)
+    elif isinstance(payload, list):
+        for idx, item in enumerate(payload):
+            item_path = f"{parent_path}[{idx}]"
+            # Recurse into list items
+            yield from _iter_all_field_values(item, item_path)
 
 
 class ProfileExtractor:
@@ -56,11 +78,9 @@ class CategoricalExtractor(ProfileExtractor):
         values = []
         paths = []
 
-        for path, value in iter_path_values(self.payload):
+        for path, value in _iter_all_field_values(self.payload):
             # Match field name at end of path
-            if path.endswith(f".{self.field_name}") or path.endswith(
-                f"['{self.field_name}']"
-            ):
+            if path.endswith(f".{self.field_name}"):
                 if isinstance(value, (str, int, bool)):
                     values.append(str(value))
                     paths.append(path)
@@ -101,7 +121,26 @@ class CategoricalExtractor(ProfileExtractor):
             "top": [[k, v] for k, v in top_items],
         }
 
-        return [SummaryBullet(text=text, citations=citations, evidence=evidence)]
+        # Add extractor metadata for UI consumption
+        extractors_meta = [
+            {
+                "name": self.extractor_spec,
+                "type": "categorical",
+                "field": self.field_name,
+                "total_count": total_count,
+                "unique_values": len(sorted_freq),
+                "top": [[k, v] for k, v in top_items],
+            }
+        ]
+
+        return [
+            SummaryBullet(
+                text=text,
+                citations=citations,
+                evidence=evidence,
+                extractors=extractors_meta,
+            )
+        ]
 
 
 class NumericExtractor(ProfileExtractor):
@@ -119,10 +158,8 @@ class NumericExtractor(ProfileExtractor):
         paths = []
         non_numeric_count = 0
 
-        for path, value in iter_path_values(self.payload):
-            if path.endswith(f".{self.field_name}") or path.endswith(
-                f"['{self.field_name}']"
-            ):
+        for path, value in _iter_all_field_values(self.payload):
+            if path.endswith(f".{self.field_name}"):
                 # Strict numeric type checking - no bool→int coercion
                 if isinstance(value, bool):
                     non_numeric_count += 1
@@ -165,7 +202,28 @@ class NumericExtractor(ProfileExtractor):
             "max": max_val,
         }
 
-        return [SummaryBullet(text=text, citations=citations, evidence=evidence)]
+        # Add extractor metadata for UI consumption
+        extractors_meta = [
+            {
+                "name": self.extractor_spec,
+                "type": "numeric",
+                "field": self.field_name,
+                "count": count,
+                "sum": total_sum,
+                "mean": mean,
+                "min": min_val,
+                "max": max_val,
+            }
+        ]
+
+        return [
+            SummaryBullet(
+                text=text,
+                citations=citations,
+                evidence=evidence,
+                extractors=extractors_meta,
+            )
+        ]
 
 
 class TimebucketExtractor(ProfileExtractor):
@@ -183,8 +241,8 @@ class TimebucketExtractor(ProfileExtractor):
         timestamps = []
         paths = []
 
-        for path, value in iter_path_values(self.payload):
-            if path.endswith(f".{field_name}") or path.endswith(f"['{field_name}']"):
+        for path, value in _iter_all_field_values(self.payload):
+            if path.endswith(f".{field_name}"):
                 if isinstance(value, str):
                     try:
                         # Try parsing ISO format timestamps
@@ -229,7 +287,27 @@ class TimebucketExtractor(ProfileExtractor):
             "top_buckets": [[k, v] for k, v in top_buckets],
         }
 
-        return [SummaryBullet(text=text, citations=citations, evidence=evidence)]
+        # Add extractor metadata for UI consumption
+        extractors_meta = [
+            {
+                "name": self.extractor_spec,
+                "type": "timebucket",
+                "field": field_name,
+                "bucket_size": bucket_size,
+                "total_events": len(timestamps),
+                "unique_buckets": len(buckets),
+                "top": [[k, v] for k, v in top_buckets],
+            }
+        ]
+
+        return [
+            SummaryBullet(
+                text=text,
+                citations=citations,
+                evidence=evidence,
+                extractors=extractors_meta,
+            )
+        ]
 
 
 class DiffExtractor(ProfileExtractor):
@@ -265,6 +343,14 @@ class DiffExtractor(ProfileExtractor):
             text = "No changes detected from baseline"
             citations = []
             evidence = {"added": 0, "removed": 0}
+            extractors_meta = [
+                {
+                    "name": self.extractor_spec,
+                    "type": "diff",
+                    "added": 0,
+                    "removed": 0,
+                }
+            ]
         else:
             added_sample = list(added)[:3]
             removed_sample = list(removed)[:3]
@@ -290,7 +376,25 @@ class DiffExtractor(ProfileExtractor):
                 "removed_paths": list(removed)[:10],
             }
 
-        return [SummaryBullet(text=text, citations=citations, evidence=evidence)]
+            extractors_meta = [
+                {
+                    "name": self.extractor_spec,
+                    "type": "diff",
+                    "added": len(added),
+                    "removed": len(removed),
+                    "added_paths": list(added)[:10],
+                    "removed_paths": list(removed)[:10],
+                }
+            ]
+
+        return [
+            SummaryBullet(
+                text=text,
+                citations=citations,
+                evidence=evidence,
+                extractors=extractors_meta,
+            )
+        ]
 
 
 def extract_with_profile_extractors(

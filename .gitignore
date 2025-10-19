@@ -32,6 +32,7 @@ env/
 htmlcov/
 .tox/
 .hypothesis/
+.claude
 
 # IDE
 .vscode/

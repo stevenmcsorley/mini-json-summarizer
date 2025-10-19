@@ -1,0 +1,99 @@
+version: '3.8'
+
+services:
+  # Mini JSON Summarizer (from parent directory)
+  summarizer:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      PROFILES_ENABLED: "true"
+      PROFILES_DIR: "profiles"
+      PII_REDACTION_ENABLED: "true"
+      ALLOW_ORIGINS: '["*"]'
+    networks:
+      - ecommerce
+
+  # E-Commerce Backend API (with intentional errors)
+  ecommerce-api:
+    build: ./ecommerce-api
+    environment:
+      CART_ERROR_RATE: "0.30"
+      CHECKOUT_ERROR_RATE: "0.40"
+    ports:
+      - "8000:8000"
+    depends_on:
+      - fluentd
+    networks:
+      - ecommerce
+
+  # Log Aggregator (simple buffer)
+  log-aggregator:
+    build: ./log-aggregator
+    ports:
+      - "9880:9880"
+    networks:
+      - ecommerce
+
+  # Fluentd (log collection)
+  fluentd:
+    image: fluent/fluentd:v1.16-debian
+    volumes:
+      - ./logging/fluentd/fluent.conf:/fluentd/etc/fluent.conf
+    ports:
+      - "24224:24224"
+      - "24224:24224/udp"
+    depends_on:
+      - log-aggregator
+    networks:
+      - ecommerce
+
+  # Log Viewer UI (simple web interface)
+  log-viewer:
+    image: nginx:alpine
+    volumes:
+      - ./log-viewer:/usr/share/nginx/html:ro
+    ports:
+      - "9292:80"
+    depends_on:
+      - log-aggregator
+    networks:
+      - ecommerce
+
+  # E-Commerce Frontend
+  ecommerce-frontend:
+    image: nginx:alpine
+    volumes:
+      - ./ecommerce:/usr/share/nginx/html:ro
+    ports:
+      - "3000:80"
+    networks:
+      - ecommerce
+
+  # Monitoring Dashboard
+  monitoring-dashboard:
+    image: nginx:alpine
+    volumes:
+      - ./monitoring:/usr/share/nginx/html:ro
+    ports:
+      - "3001:80"
+    depends_on:
+      - summarizer
+      - log-aggregator
+    networks:
+      - ecommerce
+
+  # Traffic Generator (auto-generates API requests)
+  traffic-generator:
+    build: ./traffic-generator
+    depends_on:
+      - ecommerce-api
+    networks:
+      - ecommerce
+    restart: unless-stopped
+
+networks:
+  ecommerce:
+    driver: bridge
