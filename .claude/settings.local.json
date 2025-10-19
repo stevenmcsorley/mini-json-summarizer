@@ -1,8 +1,15 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git init)",
-      "Bash(git add .)"
+      "Bash(git push -u origin feature/async-llm-integration)",
+      "Bash(gh run view 18618324830 --log-failed)",
+      "Bash(gh pr view 5)",
+      "Bash(git checkout -b feature/profiles-system)",
+      "Bash(python -c \"from app.profiles import models, loader, extractors, engine; print(''Profile modules loaded successfully'')\")",
+      "Bash(python -m pytest tests/ -v --tb=short)",
+      "Bash(python -m black app/profiles/ tests/test_profiles.py --check)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nAdd: Profiles system for domain-specific JSON summarization\n\nImplements complete profiles system (logs, metrics, policy) with targeted extractors and sensible defaults.\n\n**Core Implementation:**\n- Profile models with Pydantic validation and semantic versioning\n- Profile loader and registry with YAML loading at startup\n- 4 extractors: categorical, numeric, timebucket, diff\n- ProfileEngine wrapper for deterministic backfill\n- Precedence and redaction merging logic\n\n**Sample Profiles:**\n- logs.yaml: Error tracking, service health, temporal trends\n- metrics.yaml: Numeric statistics and KPI analysis\n- policy.yaml: Compliance validation with baseline comparison\n\n**API Integration:**\n- Added optional ''profile'' parameter to /v1/summarize-json\n- GET /v1/profiles endpoint for profile discovery\n- Unknown profile returns 400 with available list\n- Full backward compatibility (requests without profile unchanged)\n\n**Extractors:**\n- categorical:<field> - Frequency distributions with top-K\n- numeric:<field> - Statistics (mean, min, max, sum) with 80% dominance\n- timebucket:<field>:<size> - Temporal aggregations (minute/hour/day)\n- diff:baseline - Baseline comparison (added/removed paths)\n\n**Features:**\n- Profile bullets run FIRST, then deterministic backfill\n- Every bullet has ≥1 JSONPath citation\n- Request params override profile defaults\n- Redaction formula: (global.deny ∪ profile.deny) − profile.allow\n- Startup logging: \"Profiles loaded: logs@1.0.0, metrics@1.0.0, policy@1.0.0\"\n\n**Testing:**\n- 7 comprehensive tests covering all MVP requirements\n- All 19 tests passing (12 original + 7 new)\n- 100% backward compatibility maintained\n\n**Documentation:**\n- Updated README with Profiles section and curl examples\n- Created comprehensive PROFILES.md (843 lines)\n- YAML schema reference, extractor docs, best practices\n- Custom profile creation guide with examples\nEOF\n)\")",
+      "Bash(gh pr checks 6)"
     ],
     "deny": [],
     "ask": []

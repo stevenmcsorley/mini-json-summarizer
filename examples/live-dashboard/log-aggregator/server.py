@@ -2,14 +2,15 @@
 Log aggregator service - exposes Fluentd logs via HTTP endpoint.
 Reads from Fluentd buffer and serves recent logs in JSON format.
 """
+import asyncio
 import json
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Set
 from collections import deque
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import uvicorn
@@ -30,11 +31,32 @@ app.add_middleware(
 LOG_BUFFER = deque(maxlen=1000)
 BUFFER_WINDOW = timedelta(minutes=5)
 
+# WebSocket connections for real-time updates
+WEBSOCKET_CLIENTS: Set[WebSocket] = set()
+
 
 @app.get("/health")
 async def health_check():
     """Health check endpoint."""
     return {"status": "healthy", "buffer_size": len(LOG_BUFFER)}
+
+
+async def broadcast_log(log_entry: Dict[str, Any]):
+    """Broadcast new log to all connected WebSocket clients."""
+    if not WEBSOCKET_CLIENTS:
+        return
+
+    message = json.dumps({"type": "new_log", "log": log_entry})
+    dead_clients = set()
+
+    for client in WEBSOCKET_CLIENTS:
+        try:
+            await client.send_text(message)
+        except Exception:
+            dead_clients.add(client)
+
+    # Remove disconnected clients
+    WEBSOCKET_CLIENTS.difference_update(dead_clients)
 
 
 @app.post("/ingest")
@@ -53,6 +75,9 @@ async def ingest_log(request: Request):
         # Add ingestion timestamp
         log_entry["ingested_at"] = datetime.utcnow().isoformat()
         LOG_BUFFER.append(log_entry)
+
+        # Broadcast to WebSocket clients
+        asyncio.create_task(broadcast_log(log_entry))
 
         return {"status": "ok", "buffered": len(LOG_BUFFER)}
     except json.JSONDecodeError as e:
@@ -114,6 +139,39 @@ async def get_log_stats():
         "oldest_log": oldest,
         "newest_log": newest,
     }
+
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    """
+    WebSocket endpoint for real-time log streaming.
+    Sends new logs as they arrive to connected clients.
+    """
+    await websocket.accept()
+    WEBSOCKET_CLIENTS.add(websocket)
+
+    try:
+        # Send initial connection message
+        await websocket.send_json({
+            "type": "connected",
+            "message": "WebSocket connection established",
+            "buffer_size": len(LOG_BUFFER)
+        })
+
+        # Keep connection alive and listen for client messages
+        while True:
+            # Wait for any client message (ping/pong)
+            data = await websocket.receive_text()
+
+            # Echo back pings
+            if data == "ping":
+                await websocket.send_text("pong")
+
+    except WebSocketDisconnect:
+        WEBSOCKET_CLIENTS.discard(websocket)
+    except Exception as e:
+        WEBSOCKET_CLIENTS.discard(websocket)
+        print(f"WebSocket error: {e}")
 
 
 if __name__ == "__main__":
