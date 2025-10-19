@@ -1,13 +1,12 @@
 /**
- * Monitoring Dashboard - Simple, No Polling, Manual Refresh
+ * Monitoring Dashboard - Uses ONLY Mini JSON Summarizer
+ * No manual calculations - everything from the summarizer's extractors
  */
 
 const AGGREGATOR_URL = 'http://localhost:9880';
 const SUMMARIZER_URL = 'http://localhost:8080';
 
-let allLogs = [];
-
-// Manual refresh
+// Manual refresh - get summary from Mini JSON Summarizer
 async function refreshDashboard() {
     console.log('Refreshing dashboard...');
 
@@ -18,50 +17,39 @@ async function refreshDashboard() {
             throw new Error(`Aggregator error: ${logsResponse.status}`);
         }
 
-        allLogs = await logsResponse.json();
-        console.log(`Fetched ${allLogs.length} logs`);
+        const logs = await logsResponse.json();
+        console.log(`Fetched ${logs.length} logs`);
 
-        if (allLogs.length === 0) {
-            updateStats(0, 0, 100, '-');
-            document.getElementById('error-codes').innerHTML = '<p class="text-center text-gray-400 py-8">No logs found</p>';
-            document.getElementById('error-types').innerHTML = '<p class="text-center text-gray-400 py-8">No logs found</p>';
-            document.getElementById('summary-text').innerHTML = '<p class="italic">No data to summarize</p>';
+        if (logs.length === 0) {
+            showEmptyState();
             updateLastUpdate();
             return;
         }
 
-        // Step 2: Calculate basic stats
-        const errors = allLogs.filter(log => log.level === 'error');
-        const successRate = ((allLogs.length - errors.length) / allLogs.length * 100).toFixed(1);
-
-        // Count error codes
-        const errorCodes = {};
-        const errorTypes = {};
-        errors.forEach(log => {
-            if (log.code) {
-                errorCodes[log.code] = (errorCodes[log.code] || 0) + 1;
-            }
-            if (log.error_type) {
-                errorTypes[log.error_type] = (errorTypes[log.error_type] || 0) + 1;
-            }
+        // Step 2: Send to Mini JSON Summarizer with logs profile
+        const summaryResponse = await fetch(`${SUMMARIZER_URL}/v1/summarize-json`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                json: logs,
+                profile: 'logs',
+                stream: false
+            })
         });
 
-        const topErrorCode = Object.keys(errorCodes).length > 0 ?
-            Object.entries(errorCodes).sort((a, b) => b[1] - a[1])[0][0] : '-';
+        if (!summaryResponse.ok) {
+            throw new Error(`Summarizer error: ${summaryResponse.status}`);
+        }
 
-        updateStats(allLogs.length, errors.length, successRate, topErrorCode);
+        const summary = await summaryResponse.json();
+        console.log('Summary received:', summary);
 
-        // Display error codes
-        displayTopItems('error-codes', errorCodes, (code) => getErrorName(code));
-
-        // Display error types
-        displayTopItems('error-types', errorTypes, (type) => type.replace('_', ' '));
-
-        // Display recent logs
-        displayRecentLogs();
-
-        // Step 3: Get AI summary from summarizer
-        await getSummary();
+        // Step 3: Extract data from bullets
+        if (summary.bullets && summary.bullets.length > 0) {
+            processSummaryBullets(summary.bullets, logs.length);
+        } else {
+            showEmptyState();
+        }
 
         updateLastUpdate();
 
@@ -71,100 +59,233 @@ async function refreshDashboard() {
     }
 }
 
-// Update stats
-function updateStats(total, errors, successRate, topError) {
-    document.getElementById('stat-total').textContent = total;
-    document.getElementById('stat-errors').textContent = errors;
-    document.getElementById('stat-success-rate').textContent = `${successRate}%`;
-    document.getElementById('stat-top-error').textContent = topError;
+// Process bullets from Mini JSON Summarizer
+function processSummaryBullets(bullets, totalLogs) {
+    console.log('Processing bullets:', bullets);
+
+    // Find specific extractors by name
+    let levelExtractor = null;
+    let serviceExtractor = null;
+    let codeExtractor = null;
+    let timebucketExtractor = null;
+
+    // Scan all bullets for extractors
+    bullets.forEach(bullet => {
+        if (bullet.extractors && Array.isArray(bullet.extractors)) {
+            bullet.extractors.forEach(ext => {
+                if (ext.name.startsWith('categorical:level')) levelExtractor = ext;
+                else if (ext.name.startsWith('categorical:service')) serviceExtractor = ext;
+                else if (ext.name.startsWith('categorical:code')) codeExtractor = ext;
+                else if (ext.name.startsWith('timebucket:')) timebucketExtractor = ext;
+            });
+        }
+    });
+
+    // Update stats from extractors
+    updateStats(totalLogs, levelExtractor, serviceExtractor, timebucketExtractor);
+
+    // Display error codes
+    if (codeExtractor && codeExtractor.top) {
+        displayErrorCodes(codeExtractor.top, totalLogs);
+    }
+
+    // Display services
+    if (serviceExtractor && serviceExtractor.top) {
+        displayServices(serviceExtractor.top, totalLogs);
+    }
+
+    // Display log levels
+    if (levelExtractor && levelExtractor.top) {
+        displayLogLevels(levelExtractor.top, totalLogs);
+    }
+
+    // Display time buckets
+    if (timebucketExtractor && timebucketExtractor.top) {
+        displayTimeBuckets(timebucketExtractor.top);
+    }
+
+    // Display full summary text
+    displayFullSummary(bullets);
 }
 
-// Display top items
-function displayTopItems(elementId, items, labelFormatter) {
-    const container = document.getElementById(elementId);
+// Update top stats
+function updateStats(totalLogs, levelExtractor, serviceExtractor, timebucketExtractor) {
+    // Total events
+    document.getElementById('stat-total').textContent = totalLogs;
 
-    if (Object.keys(items).length === 0) {
-        container.innerHTML = '<p class="text-center text-gray-400 py-4">No errors</p>';
+    // Error rate (from level extractor)
+    if (levelExtractor && levelExtractor.top) {
+        const errorItem = levelExtractor.top.find(([level]) => level === 'error');
+        const errorCount = errorItem ? errorItem[1] : 0;
+        const errorRate = ((errorCount / totalLogs) * 100).toFixed(1);
+        document.getElementById('stat-error-rate').textContent = `${errorRate}%`;
+    } else {
+        document.getElementById('stat-error-rate').textContent = '0%';
+    }
+
+    // Services count
+    if (serviceExtractor && serviceExtractor.top) {
+        document.getElementById('stat-services').textContent = serviceExtractor.top.length;
+    } else {
+        document.getElementById('stat-services').textContent = '0';
+    }
+
+    // Time range (from timebucket extractor)
+    if (timebucketExtractor && timebucketExtractor.top) {
+        document.getElementById('stat-timerange').textContent = timebucketExtractor.top.length;
+    } else {
+        document.getElementById('stat-timerange').textContent = '0';
+    }
+}
+
+// Display error codes from categorical:code extractor
+function displayErrorCodes(topCodes, totalLogs) {
+    const container = document.getElementById('error-codes');
+
+    if (topCodes.length === 0) {
+        container.innerHTML = '<p class="text-center text-muted py-4 text-sm">No error codes found</p>';
         return;
     }
 
-    const sorted = Object.entries(items).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    container.innerHTML = topCodes.map(([code, count]) => {
+        const percentage = ((count / totalLogs) * 100).toFixed(1);
+        const isError = parseInt(code) >= 400;
+        const fillClass = isError ? 'error' : '';
 
-    container.innerHTML = sorted.map(([key, count]) => {
-        const percentage = (count / allLogs.length * 100).toFixed(1);
         return `
-            <div class="bg-white/5 rounded-lg p-3">
-                <div class="flex justify-between items-center mb-2">
-                    <span class="font-semibold">${labelFormatter(key)}</span>
-                    <span class="text-2xl font-bold">${count}</span>
+            <div>
+                <div class="flex items-center justify-between mb-1">
+                    <div class="flex items-center space-x-2">
+                        <span class="text-sm font-medium ${isError ? 'text-red-400' : 'text-green-400'}">${code}</span>
+                        <span class="text-xs text-muted">${getErrorName(code)}</span>
+                    </div>
+                    <div class="flex items-center space-x-3">
+                        <span class="text-xs text-muted">${percentage}%</span>
+                        <span class="text-sm font-semibold text-white">${count}</span>
+                    </div>
                 </div>
-                <div class="w-full bg-gray-700 rounded-full h-2">
-                    <div class="bg-purple-500 h-2 rounded-full" style="width: ${percentage}%"></div>
+                <div class="progress-bar">
+                    <div class="progress-fill ${fillClass}" style="width: ${percentage}%"></div>
                 </div>
             </div>
         `;
     }).join('');
 }
 
-// Display recent logs
-function displayRecentLogs() {
-    const container = document.getElementById('recent-logs');
-    const recent = allLogs.slice(-20).reverse();
+// Display services from categorical:service extractor
+function displayServices(topServices, totalLogs) {
+    const container = document.getElementById('services');
 
-    container.innerHTML = recent.map(log => {
-        const levelColor = log.level === 'error' ? 'text-red-400' :
-                          log.level === 'warn' ? 'text-yellow-400' : 'text-green-400';
-        return `<div class="${levelColor}">[${log.timestamp}] ${log.level.toUpperCase()}: ${log.message}</div>`;
+    container.innerHTML = topServices.map(([service, count]) => {
+        const percentage = ((count / totalLogs) * 100).toFixed(1);
+
+        return `
+            <div>
+                <div class="flex items-center justify-between mb-1">
+                    <span class="text-sm font-medium text-white">${service}</span>
+                    <div class="flex items-center space-x-3">
+                        <span class="text-xs text-muted">${percentage}%</span>
+                        <span class="text-sm font-semibold text-white">${count}</span>
+                    </div>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: ${percentage}%"></div>
+                </div>
+            </div>
+        `;
     }).join('');
 }
 
-// Get AI summary
-async function getSummary() {
-    try {
-        const response = await fetch(`${SUMMARIZER_URL}/v1/summarize-json`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                json: allLogs,
-                profile: 'logs',
-                stream: false
-            })
-        });
+// Display log levels from categorical:level extractor
+function displayLogLevels(topLevels, totalLogs) {
+    const container = document.getElementById('log-levels');
 
-        if (!response.ok) {
-            throw new Error(`Summarizer error: ${response.status}`);
-        }
+    container.innerHTML = topLevels.map(([level, count]) => {
+        const percentage = ((count / totalLogs) * 100).toFixed(1);
+        const levelColors = {
+            'error': 'text-red-400',
+            'warn': 'text-yellow-400',
+            'info': 'text-blue-400',
+            'debug': 'text-gray-400'
+        };
+        const fillClasses = {
+            'error': 'error',
+            'warn': 'warning',
+            'info': '',
+            'debug': ''
+        };
 
-        const summary = await response.json();
-        console.log('Summary received:', summary);
-
-        if (summary.bullets && summary.bullets.length > 0) {
-            const summaryText = summary.bullets.map(bullet => `• ${bullet.text}`).join('<br>');
-            document.getElementById('summary-text').innerHTML = summaryText;
-        } else {
-            document.getElementById('summary-text').innerHTML = '<p class="italic">No insights generated</p>';
-        }
-
-    } catch (error) {
-        console.error('Summary generation failed:', error);
-        document.getElementById('summary-text').innerHTML = `<p class="text-red-400">Failed to generate summary: ${error.message}</p>`;
-    }
+        return `
+            <div>
+                <div class="flex items-center justify-between mb-1">
+                    <span class="text-sm font-medium ${levelColors[level] || 'text-white'} uppercase">${level}</span>
+                    <div class="flex items-center space-x-3">
+                        <span class="text-xs text-muted">${percentage}%</span>
+                        <span class="text-sm font-semibold text-white">${count}</span>
+                    </div>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill ${fillClasses[level] || ''}" style="width: ${percentage}%"></div>
+                </div>
+            </div>
+        `;
+    }).join('');
 }
 
-// Clear logs
-function clearLogs() {
-    allLogs = [];
-    updateStats(0, 0, 100, '-');
-    document.getElementById('error-codes').innerHTML = '<p class="text-center text-gray-400 py-8">No logs</p>';
-    document.getElementById('error-types').innerHTML = '<p class="text-center text-gray-400 py-8">No logs</p>';
-    document.getElementById('recent-logs').innerHTML = '<div class="text-center text-gray-400 py-8">No logs</div>';
-    document.getElementById('summary-text').innerHTML = '<p class="italic">No data to summarize</p>';
+// Display time buckets from timebucket extractor
+function displayTimeBuckets(topBuckets) {
+    const container = document.getElementById('time-buckets');
+
+    const maxCount = Math.max(...topBuckets.map(([, count]) => count));
+
+    container.innerHTML = topBuckets.map(([bucket, count]) => {
+        const percentage = ((count / maxCount) * 100).toFixed(1);
+        const timeLabel = bucket.substring(11, 16); // Extract HH:MM
+
+        return `
+            <div>
+                <div class="flex items-center justify-between mb-1">
+                    <span class="text-sm font-medium text-white">${timeLabel}</span>
+                    <span class="text-sm font-semibold text-white">${count}</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: ${percentage}%"></div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// Display full summary text
+function displayFullSummary(bullets) {
+    const container = document.getElementById('full-summary');
+
+    const summaryHtml = bullets.map(bullet => {
+        return `<p class="text-sm text-white leading-relaxed">• ${bullet.text}</p>`;
+    }).join('');
+
+    container.innerHTML = summaryHtml;
+}
+
+// Show empty state
+function showEmptyState() {
+    document.getElementById('stat-total').textContent = '0';
+    document.getElementById('stat-error-rate').textContent = '0%';
+    document.getElementById('stat-services').textContent = '0';
+    document.getElementById('stat-timerange').textContent = '0';
+
+    const emptyMsg = '<p class="text-center text-muted py-4 text-sm">No data available</p>';
+    document.getElementById('error-codes').innerHTML = emptyMsg;
+    document.getElementById('services').innerHTML = emptyMsg;
+    document.getElementById('log-levels').innerHTML = emptyMsg;
+    document.getElementById('time-buckets').innerHTML = emptyMsg;
+    document.getElementById('full-summary').innerHTML = '<p class="text-sm text-muted italic">No logs to analyze</p>';
 }
 
 // Update last update time
 function updateLastUpdate() {
     const now = new Date().toLocaleTimeString();
-    document.getElementById('last-update').textContent = `Last updated: ${now}`;
+    document.getElementById('last-update').textContent = `Updated: ${now}`;
 }
 
 // Helper: Get error name

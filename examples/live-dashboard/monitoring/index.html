@@ -3,108 +3,201 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Error Monitoring Dashboard</title>
+    <title>Error Monitoring - Mini JSON Summarizer</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            background: #0d1117;
+            color: #c9d1d9;
+        }
+        .card {
+            background: #161b22;
+            border: 1px solid #30363d;
+        }
+        .card:hover {
+            border-color: #484f58;
+        }
+        .stat-card {
+            background: linear-gradient(135deg, #1c2128 0%, #161b22 100%);
+            border: 1px solid #30363d;
+        }
+        .btn-primary {
+            background: #238636;
+            border: 1px solid #2ea043;
+        }
+        .btn-primary:hover {
+            background: #2ea043;
+        }
+        .text-muted {
+            color: #8b949e;
+        }
+        .border-accent {
+            border-color: #30363d;
+        }
+        .bg-success { background: #1f6feb15; color: #58a6ff; }
+        .bg-error { background: #da3633 15; color: #ff7b72; }
+        .bg-warning { background: #d2990015; color: #f0883e; }
+
+        .progress-bar {
+            background: #21262d;
+            height: 6px;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            background: #238636;
+            height: 100%;
+            transition: width 0.3s ease;
+        }
+        .progress-fill.error {
+            background: #da3633;
+        }
+        .progress-fill.warning {
+            background: #d29922;
+        }
+    </style>
 </head>
-<body class="bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white min-h-screen">
+<body class="min-h-screen">
 
     <!-- Header -->
-    <header class="bg-white/10 backdrop-blur border-b border-white/20">
-        <div class="container mx-auto px-6 py-4 flex items-center justify-between">
-            <div class="flex items-center space-x-3">
-                <div class="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
-                    <span class="text-2xl">📊</span>
+    <header class="border-b border-accent sticky top-0 z-50" style="background: #0d1117;">
+        <div class="container mx-auto px-6 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-4">
+                    <div class="flex items-center space-x-3">
+                        <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                            <rect width="32" height="32" rx="6" fill="#238636"/>
+                            <path d="M16 8L12 12H15V20H17V12H20L16 8Z" fill="white"/>
+                            <rect x="10" y="22" width="12" height="2" rx="1" fill="white"/>
+                        </svg>
+                        <div>
+                            <h1 class="text-xl font-semibold text-white">Error Monitoring</h1>
+                            <p class="text-xs text-muted">Powered by Mini JSON Summarizer</p>
+                        </div>
+                    </div>
                 </div>
-                <div>
-                    <h1 class="text-xl font-bold">Error Monitoring Dashboard</h1>
-                    <p class="text-sm text-gray-300">Powered by Mini JSON Summarizer</p>
-                </div>
-            </div>
-            <div class="flex items-center space-x-4">
-                <button onclick="refreshDashboard()" class="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded-lg font-semibold flex items-center space-x-2">
-                    <span>🔄</span>
-                    <span>Refresh Now</span>
-                </button>
-                <div id="last-update" class="text-sm text-gray-300">
-                    Never updated
+                <div class="flex items-center space-x-4">
+                    <button onclick="refreshDashboard()" class="btn-primary px-4 py-2 rounded-md font-medium text-sm flex items-center space-x-2 transition-colors">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                            <path d="M1.5 3.25a.75.75 0 01.75-.75h12.5a.75.75 0 010 1.5H2.5a.75.75 0 01-.75-.75zm0 5a.75.75 0 01.75-.75h12.5a.75.75 0 010 1.5H2.5a.75.75 0 01-.75-.75zm0 5a.75.75 0 01.75-.75h12.5a.75.75 0 010 1.5H2.5a.75.75 0 01-.75-.75z"/>
+                        </svg>
+                        <span>Refresh</span>
+                    </button>
+                    <div id="last-update" class="text-xs text-muted">
+                        Never updated
+                    </div>
                 </div>
             </div>
         </div>
     </header>
 
-    <!-- Main Dashboard -->
-    <main class="container mx-auto px-6 py-8">
+    <!-- Main Content -->
+    <main class="container mx-auto px-6 py-6">
 
-        <!-- Stats Cards -->
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-            <div class="bg-white/10 backdrop-blur rounded-xl p-6 border border-white/20">
-                <div class="text-gray-300 mb-2">Total Logs</div>
-                <div id="stat-total" class="text-3xl font-bold">-</div>
+        <!-- Stats Grid -->
+        <div id="stats-grid" class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div class="stat-card rounded-lg p-5">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs font-medium text-muted uppercase tracking-wide">Total Events</span>
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="#8b949e">
+                        <path d="M8 0C3.6 0 0 3.6 0 8s3.6 8 8 8 8-3.6 8-8-3.6-8-8-8zm1 12H7V7h2v5zm0-6H7V4h2v2z"/>
+                    </svg>
+                </div>
+                <div id="stat-total" class="text-3xl font-bold text-white mb-1">-</div>
+                <div class="text-xs text-muted">Last 5 minutes</div>
             </div>
-            <div class="bg-red-500/20 backdrop-blur rounded-xl p-6 border border-red-500/50">
-                <div class="text-gray-300 mb-2">Error Count</div>
-                <div id="stat-errors" class="text-3xl font-bold text-red-400">-</div>
+
+            <div class="stat-card rounded-lg p-5">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs font-medium text-muted uppercase tracking-wide">Error Rate</span>
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="#ff7b72">
+                        <path d="M8 0a8 8 0 100 16A8 8 0 008 0zM7 3.5a1 1 0 112 0v4a1 1 0 11-2 0v-4zm1 8.5a1 1 0 100 2 1 1 0 000-2z"/>
+                    </svg>
+                </div>
+                <div id="stat-error-rate" class="text-3xl font-bold text-white mb-1">-</div>
+                <div class="text-xs text-muted">Errors / Total</div>
             </div>
-            <div class="bg-green-500/20 backdrop-blur rounded-xl p-6 border border-green-500/50">
-                <div class="text-gray-300 mb-2">Success Rate</div>
-                <div id="stat-success-rate" class="text-3xl font-bold text-green-400">-</div>
+
+            <div class="stat-card rounded-lg p-5">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs font-medium text-muted uppercase tracking-wide">Services</span>
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="#8b949e">
+                        <path d="M0 2.5A2.5 2.5 0 012.5 0h11A2.5 2.5 0 0116 2.5v11a2.5 2.5 0 01-2.5 2.5h-11A2.5 2.5 0 010 13.5v-11z"/>
+                    </svg>
+                </div>
+                <div id="stat-services" class="text-3xl font-bold text-white mb-1">-</div>
+                <div class="text-xs text-muted">Active services</div>
             </div>
-            <div class="bg-yellow-500/20 backdrop-blur rounded-xl p-6 border border-yellow-500/50">
-                <div class="text-gray-300 mb-2">Most Common Error</div>
-                <div id="stat-top-error" class="text-xl font-bold text-yellow-400">-</div>
+
+            <div class="stat-card rounded-lg p-5">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs font-medium text-muted uppercase tracking-wide">Time Range</span>
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="#8b949e">
+                        <path d="M8 0a8 8 0 110 16A8 8 0 018 0zM7.5 4.5v4.793l3.146 3.147a.5.5 0 00.708-.708L8 8.379V4.5a.5.5 0 00-1 0z"/>
+                    </svg>
+                </div>
+                <div id="stat-timerange" class="text-3xl font-bold text-white mb-1">-</div>
+                <div class="text-xs text-muted">Minutes tracked</div>
             </div>
         </div>
 
-        <!-- Main Content -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Main Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
 
             <!-- Error Codes -->
-            <div class="bg-white/10 backdrop-blur rounded-xl p-6 border border-white/20">
-                <h2 class="text-lg font-semibold mb-4 flex items-center">
-                    <span class="text-2xl mr-2">🔴</span>
-                    Top Error Codes
-                </h2>
+            <div class="card rounded-lg p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-base font-semibold text-white">Error Codes</h2>
+                    <span class="text-xs text-muted">From categorical extractor</span>
+                </div>
                 <div id="error-codes" class="space-y-3">
-                    <div class="text-center text-gray-400 py-8">Click "Refresh Now" to load data</div>
+                    <div class="text-center text-muted py-8 text-sm">Click Refresh to load data</div>
                 </div>
             </div>
 
-            <!-- Error Types -->
-            <div class="bg-white/10 backdrop-blur rounded-xl p-6 border border-white/20">
-                <h2 class="text-lg font-semibold mb-4 flex items-center">
-                    <span class="text-2xl mr-2">⚠️</span>
-                    Error Types
-                </h2>
-                <div id="error-types" class="space-y-3">
-                    <div class="text-center text-gray-400 py-8">Click "Refresh Now" to load data</div>
+            <!-- Services -->
+            <div class="card rounded-lg p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-base font-semibold text-white">Services</h2>
+                    <span class="text-xs text-muted">Event distribution</span>
+                </div>
+                <div id="services" class="space-y-3">
+                    <div class="text-center text-muted py-8 text-sm">Click Refresh to load data</div>
+                </div>
+            </div>
+
+            <!-- Log Levels -->
+            <div class="card rounded-lg p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-base font-semibold text-white">Log Levels</h2>
+                    <span class="text-xs text-muted">Severity breakdown</span>
+                </div>
+                <div id="log-levels" class="space-y-3">
+                    <div class="text-center text-muted py-8 text-sm">Click Refresh to load data</div>
+                </div>
+            </div>
+
+            <!-- Time Buckets -->
+            <div class="card rounded-lg p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-base font-semibold text-white">Timeline</h2>
+                    <span class="text-xs text-muted">Events per minute</span>
+                </div>
+                <div id="time-buckets" class="space-y-3">
+                    <div class="text-center text-muted py-8 text-sm">Click Refresh to load data</div>
                 </div>
             </div>
 
         </div>
 
-        <!-- Summary -->
-        <div class="mt-6 bg-white/10 backdrop-blur rounded-xl p-6 border border-white/20">
-            <h2 class="text-lg font-semibold mb-4 flex items-center">
-                <span class="text-2xl mr-2">📋</span>
-                AI-Generated Summary
-            </h2>
-            <div id="summary-text" class="text-gray-300">
-                <p class="italic">Click "Refresh Now" to generate summary</p>
+        <!-- Full Summary -->
+        <div class="card rounded-lg p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-base font-semibold text-white">AI-Generated Insights</h2>
+                <span class="text-xs text-muted">Complete analysis from Mini JSON Summarizer</span>
             </div>
-        </div>
-
-        <!-- Recent Logs -->
-        <div class="mt-6 bg-white/10 backdrop-blur rounded-xl p-6 border border-white/20">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-lg font-semibold flex items-center">
-                    <span class="text-2xl mr-2">📜</span>
-                    Recent Logs (Last 20)
-                </h2>
-                <button onclick="clearLogs()" class="text-sm text-gray-400 hover:text-white">Clear</button>
-            </div>
-            <div id="recent-logs" class="font-mono text-sm space-y-1 max-h-64 overflow-y-auto">
-                <div class="text-center text-gray-400 py-8">No logs yet</div>
+            <div id="full-summary" class="space-y-2">
+                <p class="text-sm text-muted italic">Click Refresh to generate insights</p>
             </div>
         </div>
 
