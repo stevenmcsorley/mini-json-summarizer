@@ -50,6 +50,16 @@ services:
     networks:
       - ecommerce
 
+  # Fluentd UI (log viewer)
+  fluentd-ui:
+    image: fluent/fluentd-ui:latest
+    ports:
+      - "9292:9292"
+    environment:
+      - FLUENTD_UI_LOG_DIR=/var/log/fluentd
+    networks:
+      - ecommerce
+
   # E-Commerce Frontend
   ecommerce-frontend:
     image: nginx:alpine
