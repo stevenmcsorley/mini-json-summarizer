@@ -119,7 +119,17 @@ class CategoricalExtractor(ProfileExtractor):
             "top": [[k, v] for k, v in top_items],
         }
 
-        return [SummaryBullet(text=text, citations=citations, evidence=evidence)]
+        # Add extractor metadata for UI consumption
+        extractors_meta = [{
+            "name": self.extractor_spec,
+            "type": "categorical",
+            "field": self.field_name,
+            "total_count": total_count,
+            "unique_values": len(sorted_freq),
+            "top": [[k, v] for k, v in top_items],
+        }]
+
+        return [SummaryBullet(text=text, citations=citations, evidence=evidence, extractors=extractors_meta)]
 
 
 class NumericExtractor(ProfileExtractor):
@@ -181,7 +191,19 @@ class NumericExtractor(ProfileExtractor):
             "max": max_val,
         }
 
-        return [SummaryBullet(text=text, citations=citations, evidence=evidence)]
+        # Add extractor metadata for UI consumption
+        extractors_meta = [{
+            "name": self.extractor_spec,
+            "type": "numeric",
+            "field": self.field_name,
+            "count": count,
+            "sum": total_sum,
+            "mean": mean,
+            "min": min_val,
+            "max": max_val,
+        }]
+
+        return [SummaryBullet(text=text, citations=citations, evidence=evidence, extractors=extractors_meta)]
 
 
 class TimebucketExtractor(ProfileExtractor):
@@ -245,7 +267,18 @@ class TimebucketExtractor(ProfileExtractor):
             "top_buckets": [[k, v] for k, v in top_buckets],
         }
 
-        return [SummaryBullet(text=text, citations=citations, evidence=evidence)]
+        # Add extractor metadata for UI consumption
+        extractors_meta = [{
+            "name": self.extractor_spec,
+            "type": "timebucket",
+            "field": field_name,
+            "bucket_size": bucket_size,
+            "total_events": len(timestamps),
+            "unique_buckets": len(buckets),
+            "top": [[k, v] for k, v in top_buckets],
+        }]
+
+        return [SummaryBullet(text=text, citations=citations, evidence=evidence, extractors=extractors_meta)]
 
 
 class DiffExtractor(ProfileExtractor):
@@ -281,6 +314,12 @@ class DiffExtractor(ProfileExtractor):
             text = "No changes detected from baseline"
             citations = []
             evidence = {"added": 0, "removed": 0}
+            extractors_meta = [{
+                "name": self.extractor_spec,
+                "type": "diff",
+                "added": 0,
+                "removed": 0,
+            }]
         else:
             added_sample = list(added)[:3]
             removed_sample = list(removed)[:3]
@@ -306,7 +345,16 @@ class DiffExtractor(ProfileExtractor):
                 "removed_paths": list(removed)[:10],
             }
 
-        return [SummaryBullet(text=text, citations=citations, evidence=evidence)]
+            extractors_meta = [{
+                "name": self.extractor_spec,
+                "type": "diff",
+                "added": len(added),
+                "removed": len(removed),
+                "added_paths": list(added)[:10],
+                "removed_paths": list(removed)[:10],
+            }]
+
+        return [SummaryBullet(text=text, citations=citations, evidence=evidence, extractors=extractors_meta)]
 
 
 def extract_with_profile_extractors(

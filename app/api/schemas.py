@@ -97,6 +97,7 @@ class SummaryBulletModel(BaseModel):
     text: str
     citations: List[CitationModel] = Field(default_factory=list)
     evidence: Any = None
+    extractors: List[Dict[str, Any]] = Field(default_factory=list)
 
     @classmethod
     def from_domain(cls, bullet) -> "SummaryBulletModel":
@@ -104,6 +105,7 @@ class SummaryBulletModel(BaseModel):
             text=bullet.text,
             citations=[CitationModel.from_domain(c) for c in bullet.citations],
             evidence=bullet.evidence,
+            extractors=bullet.extractors,
         )
 
 
