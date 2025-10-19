@@ -2,6 +2,7 @@
 E-Commerce Backend API with Intentional Errors
 Demonstrates realistic error scenarios for monitoring
 """
+
 import asyncio
 import json
 import logging
@@ -22,7 +23,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Fluentd logger
-fluent_logger = sender.FluentSender('ecommerce', host='fluentd', port=24224)
+fluent_logger = sender.FluentSender("ecommerce", host="fluentd", port=24224)
 
 app = FastAPI(title="TechStore API", version="1.0.0")
 
@@ -39,10 +40,12 @@ app.add_middleware(
 CART_ERROR_RATE = float(os.getenv("CART_ERROR_RATE", "0.30"))  # 30% failure
 CHECKOUT_ERROR_RATE = float(os.getenv("CHECKOUT_ERROR_RATE", "0.40"))  # 40% failure
 
+
 # Request models
 class AddToCartRequest(BaseModel):
     product_id: int
     quantity: int = 1
+
 
 class CheckoutRequest(BaseModel):
     items: list
@@ -57,7 +60,7 @@ def log_to_fluentd(level: str, message: str, **kwargs):
         "level": level,
         "service": "ecommerce-api",
         "message": message,
-        **kwargs
+        **kwargs,
     }
     fluent_logger.emit("log", log_entry)
     return log_entry
@@ -83,23 +86,23 @@ async def add_to_cart(request: AddToCartRequest):
             {
                 "code": 500,
                 "message": "Database connection timeout",
-                "error_type": "database_error"
+                "error_type": "database_error",
             },
             {
                 "code": 409,
                 "message": "Product out of stock",
-                "error_type": "inventory_error"
+                "error_type": "inventory_error",
             },
             {
                 "code": 400,
                 "message": "Invalid product ID",
-                "error_type": "validation_error"
+                "error_type": "validation_error",
             },
             {
                 "code": 503,
                 "message": "Cart service unavailable",
-                "error_type": "service_error"
-            }
+                "error_type": "service_error",
+            },
         ]
 
         error = random.choice(error_scenarios)
@@ -112,10 +115,12 @@ async def add_to_cart(request: AddToCartRequest):
             request_id=request_id,
             endpoint="/api/cart/add",
             product_id=request.product_id,
-            quantity=request.quantity
+            quantity=request.quantity,
         )
 
-        raise HTTPException(status_code=error["code"], detail={"message": error["message"]})
+        raise HTTPException(
+            status_code=error["code"], detail={"message": error["message"]}
+        )
 
     # Success case
     log_to_fluentd(
@@ -125,7 +130,7 @@ async def add_to_cart(request: AddToCartRequest):
         request_id=request_id,
         endpoint="/api/cart/add",
         product_id=request.product_id,
-        quantity=request.quantity
+        quantity=request.quantity,
     )
 
     return {"status": "success", "request_id": request_id}
@@ -146,28 +151,28 @@ async def checkout(request: CheckoutRequest):
             {
                 "code": 402,
                 "message": "Payment processing failed",
-                "error_type": "payment_error"
+                "error_type": "payment_error",
             },
             {
                 "code": 409,
                 "message": "Items no longer available",
-                "error_type": "inventory_error"
+                "error_type": "inventory_error",
             },
             {
                 "code": 403,
                 "message": "Transaction blocked by fraud detection",
-                "error_type": "fraud_detection"
+                "error_type": "fraud_detection",
             },
             {
                 "code": 504,
                 "message": "Payment gateway timeout",
-                "error_type": "gateway_timeout"
+                "error_type": "gateway_timeout",
             },
             {
                 "code": 500,
                 "message": "Internal server error during checkout",
-                "error_type": "server_error"
-            }
+                "error_type": "server_error",
+            },
         ]
 
         error = random.choice(error_scenarios)
@@ -182,10 +187,12 @@ async def checkout(request: CheckoutRequest):
             endpoint="/api/checkout",
             total=request.total,
             payment_method=request.payment_method,
-            items_count=len(request.items)
+            items_count=len(request.items),
         )
 
-        raise HTTPException(status_code=error["code"], detail={"message": error["message"]})
+        raise HTTPException(
+            status_code=error["code"], detail={"message": error["message"]}
+        )
 
     # Success case
     log_to_fluentd(
@@ -197,14 +204,10 @@ async def checkout(request: CheckoutRequest):
         endpoint="/api/checkout",
         total=request.total,
         payment_method=request.payment_method,
-        items_count=len(request.items)
+        items_count=len(request.items),
     )
 
-    return {
-        "status": "success",
-        "order_id": order_id,
-        "total": request.total
-    }
+    return {"status": "success", "order_id": order_id, "total": request.total}
 
 
 @app.get("/api/products")
@@ -219,7 +222,7 @@ async def get_products():
             message="Failed to fetch products",
             code=500,
             request_id=request_id,
-            endpoint="/api/products"
+            endpoint="/api/products",
         )
         raise HTTPException(status_code=500, detail={"message": "Database error"})
 
@@ -228,7 +231,7 @@ async def get_products():
         message="Products fetched successfully",
         code=200,
         request_id=request_id,
-        endpoint="/api/products"
+        endpoint="/api/products",
     )
 
     return {"status": "success", "count": 8}
@@ -236,4 +239,5 @@ async def get_products():
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)

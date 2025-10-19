@@ -8,6 +8,8 @@
 
 ---
 
+![Dashboard](dashboard.png)
+
 ## ✨ Key Features
 
 - **🎯 Domain-Specific Profiles** - Pre-configured extractors for logs, metrics, and policy analysis
@@ -53,6 +55,7 @@ curl -X POST http://localhost:8080/v1/summarize-json \
 ```
 
 **Response:**
+
 ```json
 {
   "engine": "deterministic",
@@ -60,17 +63,31 @@ curl -X POST http://localhost:8080/v1/summarize-json \
     {
       "text": "orders: 3 records; total: sum 65, avg 21.67, min 5, max 40 | status: paid (2), failed (1)",
       "citations": [
-        {"path": "$.orders[*].total", "value_preview": [20, 40, 5]},
-        {"path": "$.orders[*].status", "value_preview": ["paid", "paid", "failed"]}
+        { "path": "$.orders[*].total", "value_preview": [20, 40, 5] },
+        {
+          "path": "$.orders[*].status",
+          "value_preview": ["paid", "paid", "failed"]
+        }
       ],
       "evidence": {
         "records": 3,
-        "total": {"count": 3, "sum": 65.0, "min": 5.0, "max": 40.0, "avg": 21.67},
-        "status": {"top": [["paid", 2], ["failed", 1]]}
+        "total": {
+          "count": 3,
+          "sum": 65.0,
+          "min": 5.0,
+          "max": 40.0,
+          "avg": 21.67
+        },
+        "status": {
+          "top": [
+            ["paid", 2],
+            ["failed", 1]
+          ]
+        }
       }
     }
   ],
-  "evidence_stats": {"paths_count": 2, "bytes_examined": 254, "elapsed_ms": 7}
+  "evidence_stats": { "paths_count": 2, "bytes_examined": 254, "elapsed_ms": 7 }
 }
 ```
 
@@ -82,11 +99,11 @@ curl -X POST http://localhost:8080/v1/summarize-json \
 
 ### Available Profiles
 
-| Profile | Use Case | Extractors | Best For |
-|---------|----------|------------|----------|
-| **logs** | Incident triage, error tracking | `categorical:level`, `categorical:service`, `timebucket:timestamp:minute` | Application logs, ELB/nginx logs, incident post-mortems |
-| **metrics** | SLO health, capacity planning | `numeric:latency_ms`, `numeric:cpu_percent`, `categorical:endpoint` | Performance monitoring, KPI dashboards, FinOps |
-| **policy** | Compliance, drift detection | `categorical:action`, `diff:baseline` | IAM policy changes, access reviews, compliance audits |
+| Profile     | Use Case                        | Extractors                                                                | Best For                                                |
+| ----------- | ------------------------------- | ------------------------------------------------------------------------- | ------------------------------------------------------- |
+| **logs**    | Incident triage, error tracking | `categorical:level`, `categorical:service`, `timebucket:timestamp:minute` | Application logs, ELB/nginx logs, incident post-mortems |
+| **metrics** | SLO health, capacity planning   | `numeric:latency_ms`, `numeric:cpu_percent`, `categorical:endpoint`       | Performance monitoring, KPI dashboards, FinOps          |
+| **policy**  | Compliance, drift detection     | `categorical:action`, `diff:baseline`                                     | IAM policy changes, access reviews, compliance audits   |
 
 ### Discover Profiles
 
@@ -95,6 +112,7 @@ curl http://localhost:8080/v1/profiles
 ```
 
 **Response:**
+
 ```json
 [
   {
@@ -143,6 +161,7 @@ curl -N -X POST http://localhost:8080/v1/summarize-json \
 ```
 
 **What You Get:**
+
 - ✅ Error level breakdown (`error: 2, warn: 1`)
 - ✅ Service distribution (`api: 2, auth: 1`)
 - ✅ Temporal spikes (minute buckets show 10:11 concentration)
@@ -167,12 +186,13 @@ curl -X POST http://localhost:8080/v1/summarize-json \
 ```
 
 **What You Get:**
+
 ```json
 {
   "bullets": [
     {
       "text": "Baseline diff: added 1 paths (e.g., $.policies[0].scope)",
-      "citations": [{"path": "$.policies[0].scope"}],
+      "citations": [{ "path": "$.policies[0].scope" }],
       "evidence": {
         "added": 1,
         "removed": 0,
@@ -206,12 +226,13 @@ curl -X POST http://localhost:8080/v1/summarize-json \
 ```
 
 **What You Get (Hybrid Output):**
+
 ```json
 {
   "bullets": [
     {
       "text": "Latency averaged 151ms (min: 95ms, max: 220ms), with a notable spike above 200ms indicating potential performance degradation during peak load.",
-      "citations": [{"path": "$.latency_ms[*]"}],
+      "citations": [{ "path": "$.latency_ms[*]" }],
       "evidence": {
         "field": "latency_ms",
         "count": 5,
@@ -269,11 +290,11 @@ LLM_FALLBACK_TO_DETERMINISTIC=true
 
 ### Available Engines
 
-| Engine | How It Works | When to Use |
-|--------|--------------|-------------|
+| Engine          | How It Works                              | When to Use                          |
+| --------------- | ----------------------------------------- | ------------------------------------ |
 | `deterministic` | Rule-based extraction, JSONPath citations | Default, no API costs, fully offline |
-| `llm` | LLM rephrases evidence bundles only | Natural language for humans |
-| `hybrid` | Deterministic + LLM refinement | **Recommended**: Best of both worlds |
+| `llm`           | LLM rephrases evidence bundles only       | Natural language for humans          |
+| `hybrid`        | Deterministic + LLM refinement            | **Recommended**: Best of both worlds |
 
 ### Safety Guarantees
 
@@ -295,11 +316,13 @@ curl -X POST http://localhost:8080/v1/summarize-json \
 ```
 
 **Deterministic Output:**
+
 ```
 level: error (5), warn (3) | service: api (4), auth (2)
 ```
 
 **Hybrid Output:**
+
 ```
 The logs show a critical error concentration in the API service (5 errors vs 3 warnings),
 with authentication service experiencing 2 errors during the same timeframe.
@@ -318,6 +341,7 @@ pytest
 ```
 
 **Test Coverage:**
+
 - ✅ Core summarization (deterministic engine)
 - ✅ Streaming SSE format
 - ✅ PII redaction
@@ -370,6 +394,7 @@ curl http://localhost:8080/healthz
 ```
 
 **Docker features:**
+
 - ✅ Multi-stage build for smaller images
 - ✅ Profiles directory included
 - ✅ Environment variable configuration
@@ -381,50 +406,53 @@ curl http://localhost:8080/healthz
 
 ### Core Settings
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `MAX_PAYLOAD_BYTES` | `20971520` | Max JSON size (20MB) |
-| `MAX_JSON_DEPTH` | `64` | Max nesting level |
-| `PII_REDACTION_ENABLED` | `true` | Enable PII scrubbing |
-| `ALLOW_ORIGINS` | `["*"]` | CORS whitelist |
-| `STREAMING_CHUNK_DELAY_MS` | `100` | SSE event cadence |
+| Variable                   | Default    | Description          |
+| -------------------------- | ---------- | -------------------- |
+| `MAX_PAYLOAD_BYTES`        | `20971520` | Max JSON size (20MB) |
+| `MAX_JSON_DEPTH`           | `64`       | Max nesting level    |
+| `PII_REDACTION_ENABLED`    | `true`     | Enable PII scrubbing |
+| `ALLOW_ORIGINS`            | `["*"]`    | CORS whitelist       |
+| `STREAMING_CHUNK_DELAY_MS` | `100`      | SSE event cadence    |
 
 ### Profile Settings
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `PROFILES_ENABLED` | `true` | Enable profiles system |
-| `PROFILES_DIR` | `profiles` | YAML directory |
-| `PROFILES_HOT_RELOAD` | `false` | Watch for changes (dev) |
+| Variable              | Default    | Description             |
+| --------------------- | ---------- | ----------------------- |
+| `PROFILES_ENABLED`    | `true`     | Enable profiles system  |
+| `PROFILES_DIR`        | `profiles` | YAML directory          |
+| `PROFILES_HOT_RELOAD` | `false`    | Watch for changes (dev) |
 
 ### LLM Settings (Optional)
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `LLM_PROVIDER` | `none` | `openai`, `anthropic`, `ollama`, or `none` |
-| `LLM_MODEL` | Provider-specific | Model identifier |
-| `OPENAI_API_KEY` | - | OpenAI API key |
-| `ANTHROPIC_API_KEY` | - | Anthropic API key |
-| `OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama server URL |
-| `LLM_MAX_TOKENS` | `1500` | Max response tokens |
-| `LLM_TEMPERATURE` | `0.1` | Lower = more deterministic |
-| `LLM_FALLBACK_TO_DETERMINISTIC` | `true` | Fallback on error |
+| Variable                        | Default                  | Description                                |
+| ------------------------------- | ------------------------ | ------------------------------------------ |
+| `LLM_PROVIDER`                  | `none`                   | `openai`, `anthropic`, `ollama`, or `none` |
+| `LLM_MODEL`                     | Provider-specific        | Model identifier                           |
+| `OPENAI_API_KEY`                | -                        | OpenAI API key                             |
+| `ANTHROPIC_API_KEY`             | -                        | Anthropic API key                          |
+| `OLLAMA_BASE_URL`               | `http://localhost:11434` | Ollama server URL                          |
+| `LLM_MAX_TOKENS`                | `1500`                   | Max response tokens                        |
+| `LLM_TEMPERATURE`               | `0.1`                    | Lower = more deterministic                 |
+| `LLM_FALLBACK_TO_DETERMINISTIC` | `true`                   | Fallback on error                          |
 
 ---
 
 ## 🌐 Supported LLM Providers
 
 ### OpenAI
+
 - **Models:** `gpt-4o-mini`, `gpt-4o`, `gpt-4-turbo`
 - **Cost:** ~$0.15 per 1M tokens (gpt-4o-mini)
 - **Speed:** Fast (100-500ms)
 
 ### Anthropic Claude
+
 - **Models:** `claude-3-haiku-20240307`, `claude-3-sonnet-20240229`
 - **Cost:** $0.25 per 1M tokens (haiku)
 - **Accuracy:** Excellent instruction following
 
 ### Ollama (Local)
+
 - **Models:** `llama3.2`, `mistral`, `phi`, `codellama`
 - **Cost:** Free (runs locally)
 - **Privacy:** No data leaves your machine
@@ -437,6 +465,7 @@ curl http://localhost:8080/healthz
 ### `POST /v1/summarize-json`
 
 **Request:**
+
 ```json
 {
   "json": {...},                    // Required: JSON payload
@@ -449,6 +478,7 @@ curl http://localhost:8080/healthz
 ```
 
 **Response (non-streaming):**
+
 ```json
 {
   "engine": "hybrid",
@@ -469,6 +499,7 @@ curl http://localhost:8080/healthz
 ```
 
 **Response (streaming SSE):**
+
 ```
 data: {"phase":"summary","bullet":{...}}
 
@@ -480,6 +511,7 @@ data: {"phase":"complete","evidence_stats":{...}}
 ### `GET /v1/profiles`
 
 **Response:**
+
 ```json
 [
   {
@@ -495,6 +527,7 @@ data: {"phase":"complete","evidence_stats":{...}}
 ### `GET /healthz`
 
 **Response:**
+
 ```json
 {
   "status": "ok",
@@ -511,6 +544,7 @@ data: {"phase":"complete","evidence_stats":{...}}
 Profiles are YAML files in `profiles/` directory. No code changes needed.
 
 **Example: `profiles/my-profile.yaml`**
+
 ```yaml
 id: my-profile
 version: 1.0.0
@@ -523,10 +557,10 @@ defaults:
   engine: hybrid
 
 extractors:
-  - categorical:status        # Frequency distribution
-  - numeric:amount            # Statistics (mean, min, max)
-  - timebucket:created:hour   # Time-based aggregation
-  - diff:baseline             # Compare vs baseline
+  - categorical:status # Frequency distribution
+  - numeric:amount # Statistics (mean, min, max)
+  - timebucket:created:hour # Time-based aggregation
+  - diff:baseline # Compare vs baseline
 
 llm_hints:
   system_suffix: "Focus on anomalies and trends."
@@ -542,6 +576,7 @@ limits:
 ```
 
 **Restart server** or enable hot reload:
+
 ```bash
 PROFILES_HOT_RELOAD=true uvicorn app.main:app --reload
 ```
@@ -553,6 +588,7 @@ See [docs/PROFILES.md](docs/PROFILES.md) for full reference (843 lines, comprehe
 ## 📦 Installation Options
 
 ### Development
+
 ```bash
 git clone https://github.com/stevenmcsorley/mini-json-summarizer.git
 cd mini-json-summarizer
@@ -563,12 +599,14 @@ pytest  # Run tests
 ```
 
 ### Production
+
 ```bash
 pip install -e .
 uvicorn app.main:app --host 0.0.0.0 --port 8080
 ```
 
 ### Docker
+
 ```bash
 docker build -t mini-json-summarizer .
 docker run -p 8080:8080 mini-json-summarizer
@@ -579,6 +617,7 @@ docker run -p 8080:8080 mini-json-summarizer
 ## 🛠️ Integration Examples
 
 ### CI/CD Gate
+
 ```bash
 # Post-deploy canary check
 RESPONSE=$(curl -s -X POST http://localhost:8080/v1/summarize-json \
@@ -592,6 +631,7 @@ fi
 ```
 
 ### Runbook Integration
+
 ```bash
 # Incident playbook step
 echo "## Log Summary" >> incident.md
@@ -601,6 +641,7 @@ curl -s -X POST http://localhost:8080/v1/summarize-json \
 ```
 
 ### Slack Notification
+
 ```bash
 # Post summary to Slack
 SUMMARY=$(curl -s -X POST http://localhost:8080/v1/summarize-json \
@@ -616,6 +657,7 @@ curl -X POST https://hooks.slack.com/services/YOUR/WEBHOOK \
 ## 📖 Documentation
 
 - **[PROFILES.md](docs/PROFILES.md)** - Complete profile system guide (843 lines)
+
   - YAML schema reference
   - Extractor specifications
   - Best practices
@@ -641,6 +683,7 @@ Contributions welcome! Please:
 7. Open a Pull Request
 
 **CI Requirements:**
+
 - ✅ All tests passing (19/19)
 - ✅ Black formatting check
 - ✅ Docker build successful
@@ -657,6 +700,7 @@ MIT © 2025 Steven McSorley
 ## 🙏 Acknowledgments
 
 Built with:
+
 - [FastAPI](https://fastapi.tiangolo.com/) - Modern Python web framework
 - [Pydantic](https://pydantic-docs.helpmanual.io/) - Data validation
 - [OpenAI](https://openai.com/) / [Anthropic](https://anthropic.com/) - LLM providers

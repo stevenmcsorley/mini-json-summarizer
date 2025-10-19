@@ -2,6 +2,7 @@
 Auto Traffic Generator for E-Commerce Demo
 Continuously generates realistic traffic to create monitoring data
 """
+
 import asyncio
 import random
 import httpx
@@ -27,7 +28,7 @@ async def add_to_cart():
             response = await client.post(
                 f"{API_BASE}/api/cart/add",
                 json={"product_id": product_id, "quantity": quantity},
-                timeout=10.0
+                timeout=10.0,
             )
             status = response.status_code
             logger.info(f"Cart add: product={product_id}, status={status}")
@@ -50,12 +51,14 @@ async def checkout():
                 json={
                     "items": [{"id": i, "qty": 1} for i in range(items_count)],
                     "total": total,
-                    "payment_method": payment_method
+                    "payment_method": payment_method,
                 },
-                timeout=10.0
+                timeout=10.0,
             )
             status = response.status_code
-            logger.info(f"Checkout: items={items_count}, total=${total}, status={status}")
+            logger.info(
+                f"Checkout: items={items_count}, total=${total}, status={status}"
+            )
             return status == 200
     except Exception as e:
         logger.error(f"Checkout failed: {e}")

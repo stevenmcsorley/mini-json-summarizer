@@ -2,6 +2,7 @@
 Log aggregator service - exposes Fluentd logs via HTTP endpoint.
 Reads from Fluentd buffer and serves recent logs in JSON format.
 """
+
 import asyncio
 import json
 import time
@@ -67,7 +68,7 @@ async def ingest_log(request: Request):
     """
     try:
         body = await request.body()
-        body_str = body.decode('utf-8')
+        body_str = body.decode("utf-8")
 
         # Parse the JSON log entry
         log_entry = json.loads(body_str)
@@ -152,11 +153,13 @@ async def websocket_endpoint(websocket: WebSocket):
 
     try:
         # Send initial connection message
-        await websocket.send_json({
-            "type": "connected",
-            "message": "WebSocket connection established",
-            "buffer_size": len(LOG_BUFFER)
-        })
+        await websocket.send_json(
+            {
+                "type": "connected",
+                "message": "WebSocket connection established",
+                "buffer_size": len(LOG_BUFFER),
+            }
+        )
 
         # Keep connection alive and listen for client messages
         while True:
