@@ -50,13 +50,15 @@ services:
     networks:
       - ecommerce
 
-  # Fluentd UI (log viewer)
-  fluentd-ui:
-    image: fluent/fluentd-ui:latest
+  # Log Viewer UI (simple web interface)
+  log-viewer:
+    image: nginx:alpine
+    volumes:
+      - ./log-viewer:/usr/share/nginx/html:ro
     ports:
-      - "9292:9292"
-    environment:
-      - FLUENTD_UI_LOG_DIR=/var/log/fluentd
+      - "9292:80"
+    depends_on:
+      - log-aggregator
     networks:
       - ecommerce
 

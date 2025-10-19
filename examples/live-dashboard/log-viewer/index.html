@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Raw Log Viewer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-white min-h-screen">
+
+    <!-- Header -->
+    <header class="bg-gray-800 border-b border-gray-700">
+        <div class="container mx-auto px-6 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <span class="text-3xl">📜</span>
+                    <div>
+                        <h1 class="text-xl font-bold">Raw Log Viewer</h1>
+                        <p class="text-sm text-gray-400">Browse all logs from log aggregator</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button onclick="refreshLogs()" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg font-semibold">
+                        🔄 Refresh
+                    </button>
+                    <button onclick="clearDisplay()" class="bg-gray-600 hover:bg-gray-700 px-4 py-2 rounded-lg font-semibold">
+                        🗑️ Clear
+                    </button>
+                    <div id="log-count" class="text-sm text-gray-300">
+                        0 logs
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Filters -->
+    <div class="container mx-auto px-6 py-4 bg-gray-800/50">
+        <div class="flex items-center space-x-4">
+            <label class="flex items-center space-x-2">
+                <span class="text-sm">Level:</span>
+                <select id="filter-level" onchange="applyFilters()" class="bg-gray-700 border border-gray-600 rounded px-3 py-1 text-sm">
+                    <option value="">All</option>
+                    <option value="error">Error</option>
+                    <option value="warn">Warn</option>
+                    <option value="info">Info</option>
+                </select>
+            </label>
+            <label class="flex items-center space-x-2">
+                <span class="text-sm">Service:</span>
+                <select id="filter-service" onchange="applyFilters()" class="bg-gray-700 border border-gray-600 rounded px-3 py-1 text-sm">
+                    <option value="">All</option>
+                </select>
+            </label>
+            <label class="flex items-center space-x-2">
+                <span class="text-sm">Search:</span>
+                <input type="text" id="search-text" oninput="applyFilters()" placeholder="Filter logs..." class="bg-gray-700 border border-gray-600 rounded px-3 py-1 text-sm w-64">
+            </label>
+        </div>
+    </div>
+
+    <!-- Log Table -->
+    <main class="container mx-auto px-6 py-6">
+        <div class="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-700 border-b border-gray-600">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-sm font-semibold w-40">Timestamp</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold w-20">Level</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold w-32">Service</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold w-20">Code</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold">Message</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold w-24">Details</th>
+                        </tr>
+                    </thead>
+                    <tbody id="log-table" class="divide-y divide-gray-700 font-mono text-sm">
+                        <tr>
+                            <td colspan="6" class="px-4 py-8 text-center text-gray-500">
+                                Click "Refresh" to load logs
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- Log Detail Modal -->
+    <div id="log-detail-modal" class="hidden fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center">
+        <div class="bg-gray-800 rounded-lg p-6 max-w-3xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold">Log Details</h2>
+                <button onclick="closeDetailModal()" class="text-gray-400 hover:text-white">✕</button>
+            </div>
+            <pre id="log-detail-content" class="bg-gray-900 p-4 rounded overflow-x-auto text-sm"></pre>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
